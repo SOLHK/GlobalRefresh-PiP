@@ -184,6 +184,12 @@ final class MainTabBarController: UITabBarController, UITabBarControllerDelegate
 
         viewControllers = [pipController, frameRateController, versionController]
 
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleEngineRuntimeModeChange),
+            name: ViewController.refreshDemandDidChangeNotification,
+            object: pipController
+        )
         startRefreshDriver()
         NotificationCenter.default.addObserver(
             self,
@@ -319,13 +325,20 @@ final class MainTabBarController: UITabBarController, UITabBarControllerDelegate
     }
 
     private func startRefreshDriver() {
-        refreshDisplayLink?.invalidate()
-        refreshDisplayLink = nil
-
         let isPlayerLayerRouteEnabled = UserDefaults.standard.bool(forKey: "pip.home.playerLayerRouteEnabled")
         let isExtremeSilentModeEnabled = UserDefaults.standard.bool(forKey: "pip.home.extremeSilentModeEnabled")
         guard !isPlayerLayerRouteEnabled, !isExtremeSilentModeEnabled else {
-            AppDebugLogger.log("RefreshDriver skipped: PlayerLayer/extreme silent route active")
+            stopRefreshDriver(reason: "PlayerLayer/extreme silent route active")
+            return
+        }
+        let needsBackgroundDriver = floatingWindowController?.needsBackgroundRefreshDriver ?? false
+        guard UIApplication.shared.applicationState != .background || needsBackgroundDriver else {
+            stopRefreshDriver(reason: "background without a PiP session")
+            return
+        }
+        // Reuse the existing driver across lifecycle and PiP state notifications.
+        if let refreshDisplayLink {
+            configureRefreshDriver(refreshDisplayLink)
             return
         }
 
@@ -344,11 +357,7 @@ final class MainTabBarController: UITabBarController, UITabBarControllerDelegate
     }
 
     @objc private func handleFrameRatePreferenceChange() {
-        if let refreshDisplayLink {
-            configureRefreshDriver(refreshDisplayLink)
-        } else {
-            startRefreshDriver()
-        }
+        startRefreshDriver()
     }
 
     @objc private func handleEngineRuntimeModeChange() {

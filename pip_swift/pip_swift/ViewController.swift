@@ -322,7 +322,12 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     private var playerEndObserver: NSObjectProtocol?
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     private var isLockScreenAudioBoostActive = false
-    private var isPiPTransitioning = false
+    private var isPiPTransitioning = false {
+        didSet {
+            guard oldValue != isPiPTransitioning else { return }
+            NotificationCenter.default.post(name: Self.refreshDemandDidChangeNotification, object: self)
+        }
+    }
     private var isStoppingPiP = false
     private var pendingPiPStartWorkItem: DispatchWorkItem?
     private var pipStartTimeoutWorkItem: DispatchWorkItem?
@@ -365,8 +370,18 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     private let clockNetworkMeasureInterval: CFTimeInterval = 1.0
     private var isLoadingHomePreferences = false
     private var hasPreparedPiPInfrastructure = false
-    private var wantsPiPActive = false
-    private var isOwnPiPConfirmedActive = false
+    private var wantsPiPActive = false {
+        didSet {
+            guard oldValue != wantsPiPActive else { return }
+            NotificationCenter.default.post(name: Self.refreshDemandDidChangeNotification, object: self)
+        }
+    }
+    private var isOwnPiPConfirmedActive = false {
+        didSet {
+            guard oldValue != isOwnPiPConfirmedActive else { return }
+            NotificationCenter.default.post(name: Self.refreshDemandDidChangeNotification, object: self)
+        }
+    }
     private var pipRuntimeStartedAt: Date?
     private var pipRuntimeDuration: TimeInterval = 0
     private var pipRuntimeStoppedAtText = "暂无"
@@ -597,6 +612,13 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     static let userDefaultsIOS26AudioKeepAliveKey = "pip.keepAlive.iOS26AudioEnabled"
     static let userDefaultsIOS26PiPOnlyKeepAliveKey = "pip.keepAlive.iOS26PiPOnlyEnabled"
     static let iOS26KeepAliveModeDidChangeNotification = Notification.Name("pip.iOS26KeepAliveModeDidChange")
+    static let refreshDemandDidChangeNotification = Notification.Name("pip.refreshDemandDidChange")
+
+    // Keep the driver through startup and closing transitions, including hidden PiP.
+    var needsBackgroundRefreshDriver: Bool {
+        wantsPiPActive || isOwnPiPConfirmedActive || isPiPTransitioning
+    }
+
     static let piPEngineRuntimeModeDidChangeNotification = Notification.Name("pip.engineRuntimeModeDidChange")
     private var currentPiPSize: CGSize {
         CGSize(width: currentPiPWidth, height: effectivePiPSurfaceHeight)

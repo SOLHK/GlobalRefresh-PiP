@@ -447,7 +447,7 @@ struct RootFrameRateTestView: View {
                 VStack(spacing: 14) {
                     HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(L10n.text("强制本页面120hz", "Force 120 Hz"))
+                            Text(L10n.text("高刷请求120Hz（影响悬浮窗）", "Request 120 Hz (including PiP)"))
                                 .font(.system(size: 17, weight: .bold))
                                 .foregroundColor(Color(UIColor.label))
 

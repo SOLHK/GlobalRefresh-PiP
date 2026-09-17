@@ -1,0 +1,24 @@
+name: Build unsigned optimized IPA
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build for iPhone
+        run: |
+          xcodebuild -version
+          xcodebuild -workspace pip_swift/pip_swift.xcworkspace -scheme pip_swift -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p package/Payload
+          cp -R build/Build/Products/Release-iphoneos/pip_swift.app package/Payload/
+          cd package
+          zip -qry ../GlobalRefresh-optimized-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GlobalRefresh-optimized-unsigned
+          path: GlobalRefresh-optimized-unsigned.ipa
