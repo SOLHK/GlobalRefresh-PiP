@@ -46,8 +46,8 @@ enum KeepAlivePolicy: String, CaseIterable, Identifiable {
             )
         case .lockScreenAudio:
             return L10n.text(
-                "本节能测试版收到系统锁定通知后停止PiP及音频，锁屏音频增强不生效；解锁后请手动开启。",
-                "This power test build stops PiP and audio on lock notification. Lock-screen audio boost is disabled; restart manually after unlock."
+                "本测试版锁屏暂停高刷及音频保活，保留已有PiP会话并尝试解锁自动恢复；不启用锁屏音频增强。",
+                "This test build pauses refresh and audio on lock, retains existing PiP and attempts automatic unlock recovery. Lock-screen audio boost is disabled."
             )
         case .audioAlways:
             return L10n.text(

@@ -300,6 +300,15 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     private var playerLayerActivityTimer: Timer?
     private var isDeviceLockedForPower = false
     private var powerPauseMessage: String?
+    private var resumePiPAfterUnlock = false
+    private var didAttemptUnlockRestart = false
+    private var heightBeforeLock: CGFloat?
+
+    private func cancelUnlockResume() {
+        resumePiPAfterUnlock = false
+        didAttemptUnlockRestart = false
+        heightBeforeLock = nil
+    }
 
     var shouldPauseForPower: Bool {
         isDeviceLockedForPower || !UIApplication.shared.isProtectedDataAvailable
@@ -652,6 +661,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         formattedHeight(clampedPiPHeight)
     }
     private var pipStatusTitle: String {
+        if resumePiPAfterUnlock, let powerPauseMessage { return powerPauseMessage }
         guard isPiPRuntimeActive else {
             return powerPauseMessage ?? L10n.text("待启用", "Ready")
         }
@@ -1317,6 +1327,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
 
     @discardableResult
     private func stopActivePiPForEngineRouteSwitchIfNeeded(_ route: PiPEngineRoute) -> Bool {
+        cancelUnlockResume()
         guard pipController?.isPictureInPictureActive == true || isPiPTransitioning else { return false }
         pendingPiPEngineRouteAfterStop = route
         AppDebugLogger.log("PiP route change deferred until current PiP stops: \(route.diagnosticsName)")
@@ -1449,6 +1460,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     func stopForFullDataReset() {
+        cancelUnlockResume()
         wantsPiPActive = false
         isPiPActiveForUI = false
         guard pipController?.isPictureInPictureActive == true || isPiPTransitioning else {
@@ -2004,6 +2016,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     private func togglePiP() {
+        cancelUnlockResume()
         DiagnosticsRuntimeState.recordUserAction((pipController?.isPictureInPictureActive ?? false) ? "点击关闭悬浮窗" : "点击开启悬浮窗")
         updateDiagnosticsPiPState()
         AppDebugLogger.log("Toggle PiP tapped, active=\(pipController?.isPictureInPictureActive ?? false), prepared=\(hasPreparedPiPInfrastructure), wants=\(wantsPiPActive)")
@@ -2067,6 +2080,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     private func performHomePiPClose(reason: String) {
+        cancelUnlockResume()
         guard pipController?.isPictureInPictureActive == true else { return }
         AppDebugLogger.log("Stop PiP requested: \(reason)")
         wantsPiPActive = false
@@ -2123,6 +2137,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     private func startPiPFromShortcut(shouldHideAfterStart: Bool) {
+        cancelUnlockResume()
         // BETA5_ANCHOR_SHORTCUT_START_AND_HIDE:
         // 快捷指令“打开悬浮窗”只负责打开；“打开并隐藏悬浮窗”在 PiP 真正启动后缩到当前方案最小高度。
         if !shouldHideAfterStart || shouldUsePlayerLayerPiPCompatibility {
@@ -2270,6 +2285,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     private func stopPiPFromShortcut() {
+        cancelUnlockResume()
         recoverStalePiPTransitionIfNeeded(reason: "快捷方式关闭悬浮窗")
 
         let hadKnownPiPSession = pipController != nil && (
@@ -3006,6 +3022,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     private func handleOwnPiPInvalidated(reason: String) {
         let hadOwnSession = isOwnPiPConfirmedActive || pipRuntimeStartedAt != nil
         let shouldNotifyStopped = hadOwnSession
+            && !resumePiPAfterUnlock
             && !isStoppingPiP
             && !isClosingPiPFromCustomContentTap
             && !KeepAliveNotificationTester.shouldSuppressPiPStoppedNotification(reason: reason)
@@ -5194,7 +5211,9 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         // Notification delivery is not guaranteed to be on the UI thread.
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            if self.shouldPauseForPower {
+            if ProcessInfo.processInfo.thermalState == .serious
+                || ProcessInfo.processInfo.thermalState == .critical {
+                self.cancelUnlockResume()
                 self.suspendPiPForPower(reason: L10n.text("锁屏或过热，已暂停", "Paused: locked or too warm"))
             }
             // Cooling down does not silently restart an expensive PiP session.
@@ -5202,14 +5221,84 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         }
     }
 
-    @objc private func handleProtectedDataWillBecomeUnavailable() {
+    private func pausePiPForLock() {
         isDeviceLockedForPower = true
-        suspendPiPForPower(reason: L10n.text("锁屏已停止，请重新开启", "Stopped on lock; restart PiP"))
+        let overheated = ProcessInfo.processInfo.thermalState == .serious
+            || ProcessInfo.processInfo.thermalState == .critical
+        if wantsPiPActive && !isStoppingPiP && !overheated && !resumePiPAfterUnlock {
+            resumePiPAfterUnlock = true
+            didAttemptUnlockRestart = false
+            heightBeforeLock = clampedPiPHeight
+        }
+        powerPauseMessage = L10n.text("锁屏节能暂停，等待自动恢复", "Paused on lock; awaiting resume")
+        // Keep an established PiP container. Do not keep audio, rendering or a
+        // polling task alive just to receive unlock. iOS may still suspend us.
+        guard !overheated, pipController?.isPictureInPictureActive == true,
+              !isPiPTransitioning, resumePiPAfterUnlock else {
+            if overheated { cancelUnlockResume() }
+            suspendPiPForPower(reason: powerPauseMessage ?? L10n.text("节能暂停", "Power pause"))
+            return
+        }
+        stopDisplayLinks()
+        stopClockTimer()
+        stopPlayerLayerActivityDisplayLink(reason: "锁屏节能暂停")
+        stopPiPRuntimeTimer()
+        stopSystemAppearanceFollowTimer()
+        pendingPlayerItemReloadWorkItem?.cancel()
+        pendingPlayerItemReloadWorkItem = nil
+        pendingPlayerLayerAudioReleaseWorkItem?.cancel()
+        pendingPlayerLayerAudioReleaseWorkItem = nil
+        resetLockScreenAudioBoost(reason: "锁屏节能暂停")
+        BackgroundTaskManager.shared.forceStopAndDeactivate()
+        playerLayer?.player?.pause()
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        PowerUsageLogger.markKeepAliveStop()
+        KeepAliveNotificationTester.cancelBackgroundInterruptionProbe(reason: "锁屏节能暂停")
+        UIApplication.shared.isIdleTimerDisabled = false
+        endBackgroundTask()
+        NotificationCenter.default.post(name: Self.refreshDemandDidChangeNotification, object: self)
+        updateHomeView()
+    }
+
+    private func resumePiPAfterUnlockIfPossible() {
+        guard resumePiPAfterUnlock, !shouldPauseForPower, !isPiPTransitioning else { return }
+        if pipController?.isPictureInPictureActive == true {
+            wantsPiPActive = true
+            isOwnPiPConfirmedActive = true
+            isStoppingPiP = false
+            powerPauseMessage = nil
+            cancelUnlockResume()
+            updatePiPAutomaticStartPolicy()
+            keepPlaybackAlive()
+            startDisplayLinks()
+            startClockTimerIfNeeded()
+            startPlayerLayerActivityDisplayLinkIfNeeded(reason: "解锁自动恢复")
+            startPiPRuntimeTimerIfNeeded()
+            updateAutoHiddenOverheadState(reason: "解锁自动恢复")
+            NotificationCenter.default.post(name: Self.refreshDemandDidChangeNotification, object: self)
+            updateHomeView()
+            return
+        }
+        // One bounded restart attempt on unlock. A later foreground activation
+        // permits one more attempt, without a background polling loop.
+        guard !didAttemptUnlockRestart else { return }
+        didAttemptUnlockRestart = true
+        guard pipController != nil || preparePiPInfrastructureIfNeeded() else { return }
+        powerPauseMessage = L10n.text("正在恢复悬浮窗", "Restoring PiP")
+        wantsPiPActive = true
+        isStoppingPiP = false
+        shouldHidePiPAfterShortcutStart = false
+        updatePiPAutomaticStartPolicy()
+        startPiPSmoothly()
+    }
+
+    @objc private func handleProtectedDataWillBecomeUnavailable() {
+        pausePiPForLock()
     }
 
     @objc private func handleProtectedDataDidBecomeAvailable() {
         isDeviceLockedForPower = false
-        // No silent audio or polling to stay alive for unlock. Restart manually.
+        resumePiPAfterUnlockIfPossible()
         NotificationCenter.default.post(name: Self.refreshDemandDidChangeNotification, object: self)
         updateHomeView()
     }
@@ -5265,6 +5354,8 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
             return
         }
         if UIApplication.shared.isProtectedDataAvailable {
+            didAttemptUnlockRestart = false
+            resumePiPAfterUnlockIfPossible()
             deactivateLockScreenAudioBoostIfNeeded(reason: "App已活跃")
         }
         guard shouldResignForegroundAfterPiPClose else { return }
@@ -5274,8 +5365,13 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     @objc private func handleEnterBackground() {
+        if isDeviceLockedForPower || !UIApplication.shared.isProtectedDataAvailable {
+            pausePiPForLock()
+            return
+        }
         if shouldPauseForPower {
-            suspendPiPForPower(reason: L10n.text("锁屏或过热，已暂停", "Paused: locked or too warm"))
+            cancelUnlockResume()
+            suspendPiPForPower(reason: L10n.text("过热，已暂停", "Paused: too warm"))
             return
         }
         print("进入后台")
@@ -5445,6 +5541,12 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         updateDiagnosticsPiPState()
         updateDisplaySleepDiagnostics(reason: "PiP启动完成", shouldLog: true)
         ProcessTerminationDiagnostics.recordCheckpoint(reason: "PiP启动完成")
+        if resumePiPAfterUnlock {
+            let savedHeight = heightBeforeLock
+            cancelUnlockResume()
+            powerPauseMessage = nil
+            if let savedHeight { commitPiPHeight(savedHeight) }
+        }
         hidePiPAfterShortcutStartIfNeeded()
         hidePiPForCurrentSuspendedStateIfNeeded(reason: "PiP启动后已吸附")
         performDeferredShortcutPiPStopIfNeeded(reason: "PiP启动完成")
@@ -5564,7 +5666,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         PowerUsageLogger.markPiPStop()
         PowerUsageLogger.markKeepAliveStop()
         KeepAliveLogger.markPiPStopped(reason: "PiP did stop")
-        if !wasExpectedStop, !shouldSuppressStopNotification {
+        if !wasExpectedStop, !shouldSuppressStopNotification, !resumePiPAfterUnlock {
             KeepAliveNotificationTester.schedulePiPStoppedNotification(mode: stoppedMode, reason: "悬浮窗异常停止")
         }
         endBackgroundTask()
@@ -5583,6 +5685,9 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
             }
         }
         cancelShortcutPiPStopRetry()
+        if resumePiPAfterUnlock && !shouldPauseForPower {
+            DispatchQueue.main.async { [weak self] in self?.resumePiPAfterUnlockIfPossible() }
+        }
 
     }
 

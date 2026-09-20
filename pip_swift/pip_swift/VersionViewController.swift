@@ -671,14 +671,14 @@ struct AppChangelogSection {
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
         AppChangelogSection(
-            version: L10n.text("1.1.1-beta2 节能测试版（26.9.21）", "1.1.1-beta2 Power Test Build (2026.9.21)"),
+            version: L10n.text("1.1.1-beta3 自动恢复测试版（26.9.21）", "1.1.1-beta3 Auto-resume Test (2026.9.21)"),
             items: [
-                L10n.text("收到系统锁定通知后停止画中画、高刷驱动、视频及静音保活；锁定通知可能延迟，不保证熄屏瞬间触发", "Stop PiP, refresh drivers, video and silent audio on protected-data lock notification. Delivery may be delayed."),
-                L10n.text("解锁后需手动重新开启悬浮窗，不为自动恢复持续后台保活", "Restart PiP manually after unlocking; no background keep-alive for automatic recovery."),
-                L10n.text("系统报告严重或危急热状态时停止悬浮窗，降温后手动重启", "Stop PiP at serious or critical thermal state; restart manually after cooling."),
-                L10n.text("PlayerLayer播放看门狗由每秒30次回调改为每秒一次定时检查，视频帧率保持原有设置", "Replace the 30-callback/sec PlayerLayer playback watchdog with a 1-second timer; video frame-rate settings are preserved."),
-                L10n.text("保留亮屏隐藏悬浮窗的高刷请求，不保证其他App达到120帧；实际流畅度、耗电和锁屏行为需真机验证", "Preserve unlocked hidden-PiP refresh requests. Other apps are not guaranteed 120 fps; device testing is required."),
-                L10n.text("基于CaiWanFeng / Yoroin项目的独立优化测试版", "Independent test build based on CaiWanFeng / Yoroin.")
+                L10n.text("锁屏时保留已建立的画中画会话，暂停高刷驱动、内容刷新、播放及音频保活", "Keep established PiP on lock while pausing refresh drivers, content updates, playback and silent audio."),
+                L10n.text("收到解锁通知后自动恢复；会话被系统停止时尝试一次重启，回到应用时再次尝试", "Resume on unlock notification. If PiP was stopped, attempt a bounded restart; retry on foreground activation."),
+                L10n.text("自动重启成功后恢复锁屏前的悬浮窗高度；手动操作取消待恢复状态", "Restore previous PiP height after recovery; explicit user actions cancel pending recovery."),
+                L10n.text("不增加静音保活或后台轮询。iOS挂起或结束应用、拒绝后台PiP启动时，无法保证解锁自动恢复", "No extra silent audio or background polling. Auto-resume is not guaranteed if iOS suspends or terminates the app or denies background PiP start."),
+                L10n.text("保留严重过热停止保护和低频播放检查。锁屏信号可能延迟；功耗、温度和全局高刷均需真机验证", "Keep thermal protection and low-frequency playback checks. Lock signals may be delayed; device testing is required."),
+                L10n.text("基于CaiWanFeng / Yoroin项目的独立测试版", "Independent test build based on CaiWanFeng / Yoroin.")
             ]
         )
     }
