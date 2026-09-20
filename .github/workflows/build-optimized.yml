@@ -2,7 +2,7 @@ name: Build unsigned optimized IPA
 on:
   workflow_dispatch:
   push:
-    branches: [master]
+    branches: [master, codex/power-saving-beta2]
     paths:
       - 'pip_swift/**'
       - '.github/workflows/build-optimized.yml'

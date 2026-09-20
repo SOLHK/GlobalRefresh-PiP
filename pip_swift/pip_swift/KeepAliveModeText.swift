@@ -46,8 +46,8 @@ enum KeepAlivePolicy: String, CaseIterable, Identifiable {
             )
         case .lockScreenAudio:
             return L10n.text(
-                "beta：亮屏和未锁屏时仅PiP；收到系统锁屏事件后启用静音音频，解锁或亮屏后立即恢复仅PiP。",
-                "beta: Uses PiP-only while unlocked, starts silent audio after the system reports a lock event, and immediately returns to PiP-only after unlock or foreground activation."
+                "本节能测试版收到系统锁定通知后停止PiP及音频，锁屏音频增强不生效；解锁后请手动开启。",
+                "This power test build stops PiP and audio on lock notification. Lock-screen audio boost is disabled; restart manually after unlock."
             )
         case .audioAlways:
             return L10n.text(

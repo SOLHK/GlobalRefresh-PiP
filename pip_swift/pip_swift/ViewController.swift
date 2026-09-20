@@ -297,12 +297,19 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     private var scrollDisplayLink: CADisplayLink?
     private var clockDisplayLink: CADisplayLink?
     private var fpsProbeDisplayLink: CADisplayLink?
-    private var playerLayerActivityDisplayLink: CADisplayLink?
+    private var playerLayerActivityTimer: Timer?
+    private var isDeviceLockedForPower = false
+    private var powerPauseMessage: String?
+
+    var shouldPauseForPower: Bool {
+        isDeviceLockedForPower || !UIApplication.shared.isProtectedDataAvailable
+            || ProcessInfo.processInfo.thermalState == .serious
+            || ProcessInfo.processInfo.thermalState == .critical
+    }
     private var clockRenderTimer: Timer?
     private var pipRuntimeTimer: Timer?
     private var lastScrollTimestamp: CFTimeInterval?
     private var lastFPSProbeTimestamp: CFTimeInterval?
-    private var lastPlayerLayerActivityNudgeAt: CFTimeInterval = 0
     private var lastClockTimestamp: CFTimeInterval?
     private var lastClockNetworkTimestamp: CFTimeInterval?
     private var clockFrameCount = 0
@@ -616,7 +623,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
 
     // Keep the driver through startup and closing transitions, including hidden PiP.
     var needsBackgroundRefreshDriver: Bool {
-        wantsPiPActive || isOwnPiPConfirmedActive || isPiPTransitioning
+        !shouldPauseForPower && (wantsPiPActive || isOwnPiPConfirmedActive || isPiPTransitioning)
     }
 
     static let piPEngineRuntimeModeDidChangeNotification = Notification.Name("pip.engineRuntimeModeDidChange")
@@ -646,7 +653,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
     private var pipStatusTitle: String {
         guard isPiPRuntimeActive else {
-            return L10n.text("待启用", "Ready")
+            return powerPauseMessage ?? L10n.text("待启用", "Ready")
         }
         return clampedPiPHeight <= 0.15
             ? L10n.text("运行中-已隐藏", "Hidden")
@@ -744,6 +751,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(handleEnterBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(handleProtectedDataWillBecomeUnavailable), name: UIApplication.protectedDataWillBecomeUnavailableNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(handleProtectedDataDidBecomeAvailable), name: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(handlePowerThermalChange), name: ProcessInfo.thermalStateDidChangeNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(handleKeepAliveModeDidChange), name: Self.iOS26KeepAliveModeDidChangeNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(handleFrameRatePreferenceDidChange), name: FrameRatePreference.didChangeNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(handleLanguageDidChange), name: L10n.languageDidChangeNotification, object: nil)
@@ -2190,6 +2198,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     private func scheduleShortcutPiPStartRetry(reason: String) -> Bool {
+        guard !shouldPauseForPower else { return false }
         guard shortcutPiPStartRetryRemaining > 0 else { return false }
         shortcutPiPStartRetryRemaining -= 1
         pendingShortcutPiPStartRetry?.cancel()
@@ -2553,6 +2562,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     private func updateBackingPlayerPlaybackForCurrentMode() {
+        guard !shouldPauseForPower else { playerLayer?.player?.pause(); return }
         guard let player = playerLayer?.player else { return }
         configureBackingPlayerForPiP(player)
         if shouldUsePlayerLayerPiPCompatibility {
@@ -2796,7 +2806,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     private var shouldKeepPiPPlaybackAlive: Bool {
-        wantsPiPActive && (isOwnPiPConfirmedActive || isPiPTransitioning)
+        !shouldPauseForPower && wantsPiPActive && (isOwnPiPConfirmedActive || isPiPTransitioning)
     }
 
     private var currentKeepAlivePolicy: KeepAlivePolicy {
@@ -2938,12 +2948,13 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     private var shouldRunPiPContentUpdates: Bool {
+        guard !shouldPauseForPower else { return false }
         guard !isExtremeSilentModeEnabled else { return false }
         return (isOwnPiPConfirmedActive || isPiPTransitioning) && !isPiPSuspendedAtSide && !isPiPVisuallyHidden
     }
 
     private var shouldRunLowCostPiPContentUpdates: Bool {
-        (isOwnPiPConfirmedActive || isPiPTransitioning) && !isPiPSuspendedAtSide && !isPiPVisuallyHidden
+        !shouldPauseForPower && (isOwnPiPConfirmedActive || isPiPTransitioning) && !isPiPSuspendedAtSide && !isPiPVisuallyHidden
     }
 
     private func updateAutoHiddenOverheadState(reason: String) {
@@ -3368,6 +3379,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     private func startDisplayLinks() {
+        guard !shouldPauseForPower else { return }
         guard !shouldUsePlayerLayerPiPCompatibility || shouldAttachCustomViewInPlayerLayerPiP else { return }
         guard !isContentExtremeModeEnabled else {
             stopDisplayLinks()
@@ -3395,33 +3407,37 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     private func startPlayerLayerActivityDisplayLinkIfNeeded(reason: String) {
+        guard !shouldPauseForPower else { return }
         guard shouldUsePlayerLayerPiPCompatibility else { return }
         guard FrameRatePreference.isHighRefreshEnabled else {
             stopPlayerLayerActivityDisplayLink(reason: "强制120关闭")
             return
         }
         guard pipController?.isPictureInPictureActive == true || isPiPTransitioning else { return }
-        guard playerLayerActivityDisplayLink == nil else { return }
-
-        let displayLink = CADisplayLink(target: self, selector: #selector(stepPlayerLayerActivityDriver(_:)))
-        displayLink.preferredFramesPerSecond = 30
-        displayLink.add(to: .main, forMode: .default)
-        playerLayerActivityDisplayLink = displayLink
-        lastPlayerLayerActivityNudgeAt = 0
-        AppDebugLogger.log("PlayerLayer original-style activity displayLink started: \(reason)")
+        guard playerLayerActivityTimer == nil else { return }
+        // This watchdog only checks playback once a second; it does not render frames.
+        let timer = Timer(timeInterval: 1.0, target: self,
+                          selector: #selector(stepPlayerLayerActivityDriver), userInfo: nil, repeats: true)
+        timer.tolerance = 0.2
+        RunLoop.main.add(timer, forMode: .common)
+        playerLayerActivityTimer = timer
+        AppDebugLogger.log("PlayerLayer 1-second playback watchdog started: \(reason)")
     }
 
     private func stopPlayerLayerActivityDisplayLink(reason: String) {
-        let hadDisplayLink = playerLayerActivityDisplayLink != nil
-        playerLayerActivityDisplayLink?.invalidate()
-        playerLayerActivityDisplayLink = nil
-        lastPlayerLayerActivityNudgeAt = 0
+        let hadDisplayLink = playerLayerActivityTimer != nil
+        playerLayerActivityTimer?.invalidate()
+        playerLayerActivityTimer = nil
         if hadDisplayLink {
-            AppDebugLogger.log("PlayerLayer original-style activity displayLink stopped: \(reason)")
+            AppDebugLogger.log("PlayerLayer 1-second playback watchdog stopped: \(reason)")
         }
     }
 
-    @objc private func stepPlayerLayerActivityDriver(_ displayLink: CADisplayLink) {
+    @objc private func stepPlayerLayerActivityDriver() {
+        guard !shouldPauseForPower else {
+            suspendPiPForPower(reason: L10n.text("节能暂停，请重新开启", "Paused; restart PiP"))
+            return
+        }
         guard shouldUsePlayerLayerPiPCompatibility,
               FrameRatePreference.isHighRefreshEnabled,
               pipController?.isPictureInPictureActive == true,
@@ -3431,8 +3447,6 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
             return
         }
 
-        guard displayLink.timestamp - lastPlayerLayerActivityNudgeAt >= 1.0 else { return }
-        lastPlayerLayerActivityNudgeAt = displayLink.timestamp
         guard let player = playerLayer?.player else { return }
         if player.timeControlStatus != .playing {
             player.play()
@@ -3857,6 +3871,11 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     private func startPiPSmoothly() {
+        guard !shouldPauseForPower else {
+            suspendPiPForPower(reason: L10n.text("锁屏或过热，已暂停", "Paused: locked or too warm"))
+            return
+        }
+        powerPauseMessage = nil
         guard pipController != nil else {
             isPiPActiveForUI = false
             return
@@ -3886,6 +3905,11 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     private func startLegacyPlayerLayerPiP() {
+        guard !shouldPauseForPower else {
+            suspendPiPForPower(reason: L10n.text("锁屏或过热，已暂停", "Paused: locked or too warm"))
+            return
+        }
+        powerPauseMessage = nil
         guard pipController != nil else {
             isPiPActiveForUI = false
             return
@@ -3908,6 +3932,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     private func requestLegacyPlayerLayerPiPStartWhenReady(attempt: Int = 0) {
+        guard !shouldPauseForPower, wantsPiPActive else { return }
         pendingPiPStartWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
             guard
@@ -4246,7 +4271,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     private func requestPiPStartWhenReady(attempt: Int = 0) {
         pendingPiPStartWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
-            guard let self else { return }
+            guard let self, !self.shouldPauseForPower, self.wantsPiPActive, self.isPiPTransitioning else { return }
 
             self.prepareCustomViewForPiPStart()
             self.restorePiPVisualSurfaces()
@@ -4371,6 +4396,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     private func retryPiPStartWithLegacyControlsStyleFallbackIfNeeded(reason: String) -> Bool {
+        guard !shouldPauseForPower else { return false }
         guard shouldExperimentWithLegacyPiPControlsStyle2,
               preferredPiPControlsStyle == 2,
               !didFallbackLegacyPiPControlsStyle
@@ -4418,6 +4444,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     private func retryLegacyPiPStartIfNeeded(reason: String) -> Bool {
+        guard !shouldPauseForPower else { return false }
         guard needsLegacyPiPCompatibility, !shouldUsePlayerLayerPiPCompatibility, !didRetryLegacyPiPStart else {
             return false
         }
@@ -5074,6 +5101,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     private func activateLockScreenAudioBoostIfNeeded(reason: String) {
+        guard !shouldPauseForPower else { return }
         guard currentKeepAlivePolicy.usesAudioWhileLocked else { return }
         guard !shouldUsePlayerLayerPiPCompatibility else {
             AppDebugLogger.log("锁屏音频增强未介入PlayerLayer，保持原视频管线：\(reason)")
@@ -5117,14 +5145,73 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         AppDebugLogger.log("锁屏音频增强状态重置：\(reason)")
     }
 
+    // Protected-data notifications are public lock-related signals, not an exact
+    // display-off API. They can be delayed by passcode/data-protection settings.
+    private func suspendPiPForPower(reason: String) {
+        powerPauseMessage = reason
+        wantsPiPActive = false
+        isStoppingPiP = true
+        pipExpectedActiveBeforeStop = false
+        updatePiPAutomaticStartPolicy()
+        pendingPiPStartWorkItem?.cancel()
+        pendingPiPStartWorkItem = nil
+        pipStartTimeoutWorkItem?.cancel()
+        pipStartTimeoutWorkItem = nil
+        pendingPlayerItemReloadWorkItem?.cancel()
+        pendingPlayerItemReloadWorkItem = nil
+        pendingPlayerLayerAudioReleaseWorkItem?.cancel()
+        pendingPlayerLayerAudioReleaseWorkItem = nil
+        cancelShortcutPiPStartRetry()
+        cancelShortcutPiPStopRetry()
+        shouldHidePiPAfterShortcutStart = false
+        cancelDelayedPiPHideCountdown(reason: "节能暂停")
+        finishPiPTransition()
+        stopDisplayLinks()
+        stopClockTimer()
+        stopPlayerLayerActivityDisplayLink(reason: "节能暂停")
+        stopPiPRuntimeTimer()
+        stopSystemAppearanceFollowTimer()
+        resetLockScreenAudioBoost(reason: "节能暂停")
+        BackgroundTaskManager.shared.forceStopAndDeactivate()
+        playerLayer?.player?.pause()
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        PowerUsageLogger.markKeepAliveStop()
+        KeepAliveNotificationTester.cancelBackgroundInterruptionProbe(reason: "节能暂停")
+        UIApplication.shared.isIdleTimerDisabled = false
+        endBackgroundTask()
+        NotificationCenter.default.post(name: Self.refreshDemandDidChangeNotification, object: self)
+        if pipController?.isPictureInPictureActive == true {
+            pipController?.stopPictureInPicture()
+        } else {
+            isOwnPiPConfirmedActive = false
+            isPiPActiveForUI = false
+            finishPiPRuntimeSession()
+        }
+        updateHomeView()
+    }
+
+    @objc private func handlePowerThermalChange() {
+        // Notification delivery is not guaranteed to be on the UI thread.
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            if self.shouldPauseForPower {
+                self.suspendPiPForPower(reason: L10n.text("锁屏或过热，已暂停", "Paused: locked or too warm"))
+            }
+            // Cooling down does not silently restart an expensive PiP session.
+            NotificationCenter.default.post(name: Self.refreshDemandDidChangeNotification, object: self)
+        }
+    }
+
     @objc private func handleProtectedDataWillBecomeUnavailable() {
-        AppDebugLogger.log("收到设备锁定事件：policy=\(currentKeepAlivePolicy.diagnosticsName)，PiP=\(shouldKeepPiPPlaybackAlive)")
-        activateLockScreenAudioBoostIfNeeded(reason: "protectedDataWillBecomeUnavailable")
+        isDeviceLockedForPower = true
+        suspendPiPForPower(reason: L10n.text("锁屏已停止，请重新开启", "Stopped on lock; restart PiP"))
     }
 
     @objc private func handleProtectedDataDidBecomeAvailable() {
-        AppDebugLogger.log("收到设备解锁事件：policy=\(currentKeepAlivePolicy.diagnosticsName)")
-        deactivateLockScreenAudioBoostIfNeeded(reason: "protectedDataDidBecomeAvailable")
+        isDeviceLockedForPower = false
+        // No silent audio or polling to stay alive for unlock. Restart manually.
+        NotificationCenter.default.post(name: Self.refreshDemandDidChangeNotification, object: self)
+        updateHomeView()
     }
 
     @objc private func handleEnterForeground() {
@@ -5172,6 +5259,11 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     @objc private func handleDidBecomeActive() {
+        isDeviceLockedForPower = !UIApplication.shared.isProtectedDataAvailable
+        if shouldPauseForPower {
+            suspendPiPForPower(reason: L10n.text("锁屏或过热，已暂停", "Paused: locked or too warm"))
+            return
+        }
         if UIApplication.shared.isProtectedDataAvailable {
             deactivateLockScreenAudioBoostIfNeeded(reason: "App已活跃")
         }
@@ -5182,6 +5274,10 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     @objc private func handleEnterBackground() {
+        if shouldPauseForPower {
+            suspendPiPForPower(reason: L10n.text("锁屏或过热，已暂停", "Paused: locked or too warm"))
+            return
+        }
         print("进入后台")
         stopSystemAppearanceFollowTimer()
         if shouldResignForegroundAfterPiPClose {
@@ -5308,6 +5404,11 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     func pictureInPictureControllerDidStartPictureInPicture(_ pictureInPictureController: AVPictureInPictureController) {
+        guard !shouldPauseForPower, wantsPiPActive else {
+            suspendPiPForPower(reason: powerPauseMessage ?? L10n.text("已暂停，请重新开启", "Paused; restart PiP"))
+            pictureInPictureController.stopPictureInPicture()
+            return
+        }
         pendingPiPStartWorkItem?.cancel()
         pipStartTimeoutWorkItem?.cancel()
         pendingPiPStartWorkItem = nil

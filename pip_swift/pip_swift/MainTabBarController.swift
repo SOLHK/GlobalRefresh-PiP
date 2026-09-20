@@ -325,6 +325,13 @@ final class MainTabBarController: UITabBarController, UITabBarControllerDelegate
     }
 
     private func startRefreshDriver() {
+        guard UIApplication.shared.isProtectedDataAvailable,
+              ProcessInfo.processInfo.thermalState != .serious,
+              ProcessInfo.processInfo.thermalState != .critical,
+              floatingWindowController?.shouldPauseForPower != true else {
+            stopRefreshDriver(reason: "locked or thermal protection")
+            return
+        }
         let isPlayerLayerRouteEnabled = UserDefaults.standard.bool(forKey: "pip.home.playerLayerRouteEnabled")
         let isExtremeSilentModeEnabled = UserDefaults.standard.bool(forKey: "pip.home.extremeSilentModeEnabled")
         guard !isPlayerLayerRouteEnabled, !isExtremeSilentModeEnabled else {

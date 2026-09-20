@@ -671,13 +671,14 @@ struct AppChangelogSection {
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
         AppChangelogSection(
-            version: L10n.text("1.1.1-beta1 优化测试版（26.9.20）", "1.1.1-beta1 Optimized Test Build (2026.9.20)"),
+            version: L10n.text("1.1.1-beta2 节能测试版（26.9.21）", "1.1.1-beta2 Power Test Build (2026.9.21)"),
             items: [
-                L10n.text("无悬浮窗会话时，进入后台停止主高刷驱动，减少无效运行", "Stop the main refresh driver in the background when no PiP session is needed."),
-                L10n.text("复用主高刷驱动，减少前后台切换及状态变化时的重复创建", "Reuse the main refresh driver across lifecycle and session changes."),
-                L10n.text("悬浮窗启动、停止及失效时同步驱动需求；保留0.1pt隐藏时的高刷请求", "Update driver demand on PiP transitions; preserve refresh requests for hidden 0.1pt PiP."),
-                L10n.text("高刷开关更名，明确其同时影响悬浮窗", "Clarify that the refresh toggle also affects PiP."),
-                L10n.text("基于CaiWanFeng / Yoroin项目的独立优化测试版，非上游官方更新；实际帧率和耗电改善待实机验证", "Independent test build based on CaiWanFeng / Yoroin, not an upstream release. Frame-rate and power improvements need device testing.")
+                L10n.text("收到系统锁定通知后停止画中画、高刷驱动、视频及静音保活；锁定通知可能延迟，不保证熄屏瞬间触发", "Stop PiP, refresh drivers, video and silent audio on protected-data lock notification. Delivery may be delayed."),
+                L10n.text("解锁后需手动重新开启悬浮窗，不为自动恢复持续后台保活", "Restart PiP manually after unlocking; no background keep-alive for automatic recovery."),
+                L10n.text("系统报告严重或危急热状态时停止悬浮窗，降温后手动重启", "Stop PiP at serious or critical thermal state; restart manually after cooling."),
+                L10n.text("PlayerLayer播放看门狗由每秒30次回调改为每秒一次定时检查，视频帧率保持原有设置", "Replace the 30-callback/sec PlayerLayer playback watchdog with a 1-second timer; video frame-rate settings are preserved."),
+                L10n.text("保留亮屏隐藏悬浮窗的高刷请求，不保证其他App达到120帧；实际流畅度、耗电和锁屏行为需真机验证", "Preserve unlocked hidden-PiP refresh requests. Other apps are not guaranteed 120 fps; device testing is required."),
+                L10n.text("基于CaiWanFeng / Yoroin项目的独立优化测试版", "Independent test build based on CaiWanFeng / Yoroin.")
             ]
         )
     }
