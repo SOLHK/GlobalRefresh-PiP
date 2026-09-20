@@ -671,6 +671,19 @@ struct AppChangelogSection {
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
         AppChangelogSection(
+            version: L10n.text("1.1.1-beta1 优化测试版（26.9.20）", "1.1.1-beta1 Optimized Test Build (2026.9.20)"),
+            items: [
+                L10n.text("无悬浮窗会话时，进入后台停止主高刷驱动，减少无效运行", "Stop the main refresh driver in the background when no PiP session is needed."),
+                L10n.text("复用主高刷驱动，减少前后台切换及状态变化时的重复创建", "Reuse the main refresh driver across lifecycle and session changes."),
+                L10n.text("悬浮窗启动、停止及失效时同步驱动需求；保留0.1pt隐藏时的高刷请求", "Update driver demand on PiP transitions; preserve refresh requests for hidden 0.1pt PiP."),
+                L10n.text("高刷开关更名，明确其同时影响悬浮窗", "Clarify that the refresh toggle also affects PiP."),
+                L10n.text("基于CaiWanFeng / Yoroin项目的独立优化测试版，非上游官方更新；实际帧率和耗电改善待实机验证", "Independent test build based on CaiWanFeng / Yoroin, not an upstream release. Frame-rate and power improvements need device testing.")
+            ]
+        )
+    }
+
+    static var version110fix: AppChangelogSection {
+        AppChangelogSection(
             version: L10n.text("1.1.0fix（26.8.29）", "1.1.0fix (2026.8.29)"),
             items: [
                 L10n.text("修复 iOS 15-iOS 18 悬浮窗被其他画中画应用挤掉后可能收不到通知的问题", "Fixed PiP conflict alerts sometimes not being delivered after another Picture in Picture app displaced the floating window on iOS 15 through iOS 18."),
@@ -859,6 +872,7 @@ final class ChangelogViewController: UIViewController {
 
         let stackView = UIStackView(arrangedSubviews: [
             makeSection(section: AppChangelogCatalog.latest),
+            makeSection(section: AppChangelogCatalog.version110fix),
             makeSection(section: AppChangelogCatalog.version110),
             makeSection(
                 version: L10n.text("1.0.9 （26.7.8）", "1.0.9 (2026.7.8)"),
