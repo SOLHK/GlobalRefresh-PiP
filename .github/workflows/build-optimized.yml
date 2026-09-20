@@ -1,6 +1,11 @@
 name: Build unsigned optimized IPA
 on:
   workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - 'pip_swift/**'
+      - '.github/workflows/build-optimized.yml'
 permissions:
   contents: read
 jobs:
