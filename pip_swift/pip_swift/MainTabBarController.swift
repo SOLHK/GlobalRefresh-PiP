@@ -47,6 +47,9 @@ private final class TabContentFadeAnimator: NSObject, UIViewControllerAnimatedTr
 final class MainTabBarController: UITabBarController, UITabBarControllerDelegate {
 
     private var refreshDisplayLink: CADisplayLink?
+#if DEBUG && targetEnvironment(simulator)
+    var simulatorHasRefreshDriver: Bool { refreshDisplayLink != nil }
+#endif
     private var pendingShortcutRetryWorkItems: [DispatchWorkItem] = []
     private var launchCelebrationController: UIHostingController<GlobalRefresh2LaunchCelebrationView>?
     private var latestChangelogController: LatestChangelogViewController?

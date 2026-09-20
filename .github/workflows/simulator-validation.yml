@@ -1,0 +1,52 @@
+name: iPhone simulator validation
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/power-saving-beta2]
+    paths: ['pip_swift/**', 'ci/**', '.github/workflows/simulator-validation.yml']
+permissions:
+  contents: read
+jobs:
+  simulator:
+    runs-on: macos-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure hosted XCTest and UI test targets
+        run: |
+          gem install --user-install xcodeproj --no-document
+          ruby ci/configure-simulator-tests.rb
+      - name: Select and boot an available iPhone
+        run: |
+          xcodebuild -version
+          xcrun simctl list devices available -j > /tmp/simulators.json
+          DEVICE_ID=$(python3 - <<'PY'
+          import json
+          data=json.load(open('/tmp/simulators.json'))['devices']
+          candidates=[(runtime,d) for runtime,devices in data.items() if 'iOS' in runtime for d in devices if d['isAvailable'] and d['name'].startswith('iPhone')]
+          runtime,device=sorted(candidates,key=lambda x:(x[0],x[1]['name']))[-1]
+          print(device['udid'])
+          PY
+          )
+          echo "SIMULATOR_ID=$DEVICE_ID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$DEVICE_ID"
+          xcrun simctl bootstatus "$DEVICE_ID" -b
+      - name: Run app-hosted lifecycle tests and UI tests
+        run: |
+          set -o pipefail
+          xcodebuild test -workspace pip_swift/pip_swift.xcworkspace -scheme SimulatorValidation -configuration Debug -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath simulator-build -resultBundlePath SimulatorResults.xcresult -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO 2>&1 | tee simulator-tests.log
+      - name: Collect test report and screen capture
+        if: always()
+        run: |
+          mkdir -p simulator-evidence
+          cp simulator-tests.log simulator-evidence/ 2>/dev/null || true
+          xcrun simctl io "$SIMULATOR_ID" screenshot simulator-evidence/final-screen.png || true
+          xcrun xcresulttool get test-results summary --path SimulatorResults.xcresult --format json > simulator-evidence/summary.json || true
+          xcrun xcresulttool export attachments --path SimulatorResults.xcresult --output-path simulator-evidence/attachments || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: iPhone-simulator-test-results
+          path: |
+            simulator-evidence
+            SimulatorResults.xcresult

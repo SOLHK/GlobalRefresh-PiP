@@ -303,6 +303,9 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     private var resumePiPAfterUnlock = false
     private var didAttemptUnlockRestart = false
     private var heightBeforeLock: CGFloat?
+#if DEBUG && targetEnvironment(simulator)
+    private var simulatorRestartAttempts = 0
+#endif
 
     private func cancelUnlockResume() {
         resumePiPAfterUnlock = false
@@ -5211,14 +5214,17 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         // Notification delivery is not guaranteed to be on the UI thread.
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            if ProcessInfo.processInfo.thermalState == .serious
-                || ProcessInfo.processInfo.thermalState == .critical {
-                self.cancelUnlockResume()
-                self.suspendPiPForPower(reason: L10n.text("锁屏或过热，已暂停", "Paused: locked or too warm"))
-            }
-            // Cooling down does not silently restart an expensive PiP session.
-            NotificationCenter.default.post(name: Self.refreshDemandDidChangeNotification, object: self)
+            self.applyThermalState(ProcessInfo.processInfo.thermalState)
         }
+    }
+
+    func applyThermalState(_ state: ProcessInfo.ThermalState) {
+        if state == .serious || state == .critical {
+            cancelUnlockResume()
+            suspendPiPForPower(reason: L10n.text("过热，已暂停", "Paused: too warm"))
+        }
+        // Cooling down does not silently restart an expensive PiP session.
+        NotificationCenter.default.post(name: Self.refreshDemandDidChangeNotification, object: self)
     }
 
     private func pausePiPForLock() {
@@ -5283,6 +5289,9 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         // permits one more attempt, without a background polling loop.
         guard !didAttemptUnlockRestart else { return }
         didAttemptUnlockRestart = true
+#if DEBUG && targetEnvironment(simulator)
+        simulatorRestartAttempts += 1
+#endif
         guard pipController != nil || preparePiPInfrastructureIfNeeded() else { return }
         powerPauseMessage = L10n.text("正在恢复悬浮窗", "Restoring PiP")
         wantsPiPActive = true
@@ -5735,6 +5744,31 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
 }
+
+#if DEBUG && targetEnvironment(simulator)
+// Simulator-only access to real lifecycle paths. These hooks are absent from IPA builds.
+extension ViewController {
+    var simulatorSnapshot: (resumePending: Bool, wantsPiP: Bool, hasPendingStart: Bool,
+                            hasContentTimers: Bool, audioPlaying: Bool, savedHeight: CGFloat?,
+                            restartAttempts: Int, actualPiPActive: Bool) {
+        (resumePiPAfterUnlock, wantsPiPActive, pendingPiPStartWorkItem != nil,
+         scrollDisplayLink != nil || clockDisplayLink != nil || clockRenderTimer != nil
+            || playerLayerActivityTimer != nil || fpsProbeDisplayLink != nil,
+         BackgroundTaskManager.shared.isPlaying, heightBeforeLock,
+         simulatorRestartAttempts, pipController?.isPictureInPictureActive == true)
+    }
+    func simulatorSeedStartingSession(height: CGFloat) {
+        pipHeight = height
+        isStoppingPiP = false
+        wantsPiPActive = true
+        beginPiPTransition(expectedActive: true, reason: "simulator startup interruption test")
+        pendingPiPStartWorkItem = DispatchWorkItem {}
+        clockRenderTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in }
+    }
+    func simulatorUserStop() { stopPiPFromShortcut() }
+    func simulatorUserStart() { togglePiP() }
+}
+#endif
 
 private extension UIColor {
     var debugRGBAString: String {
