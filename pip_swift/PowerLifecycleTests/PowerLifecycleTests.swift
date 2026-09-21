@@ -98,6 +98,22 @@ final class PowerLifecycleTests: XCTestCase {
         NotificationCenter.default.removeObserver(tabs)
     }
 
+    func testMainRefreshDriverRestartsOnUnlockWithoutForegroundActivation() {
+        let tabs = MainTabBarController()
+        tabs.loadViewIfNeeded()
+        let home = tabs.viewControllers!.first as! ViewController
+        home.loadViewIfNeeded()
+        XCTAssertTrue(tabs.simulatorHasRefreshDriver)
+        lock()
+        XCTAssertFalse(tabs.simulatorHasRefreshDriver)
+        // Do not send UIApplication.didBecomeActiveNotification or visit the app.
+        unlock()
+        XCTAssertTrue(tabs.simulatorHasRefreshDriver)
+        home.stopForFullDataReset()
+        NotificationCenter.default.removeObserver(home)
+        NotificationCenter.default.removeObserver(tabs)
+    }
+
     func testBackgroundHomeUpdatesCannotRestartRuntimeUITimer() {
         controller.viewDidAppear(false)
         controller.simulatorSeedRuntime(startedAt: Date().addingTimeInterval(-90))
