@@ -72,8 +72,7 @@ final class MainTabBarController: UITabBarController, UITabBarControllerDelegate
         super.viewDidAppear(animated)
         if GlobalRefresh2LaunchCelebration.shouldPresent {
             presentLaunchCelebrationIfNeeded()
-        } else if GlobalRefresh2LaunchCelebration.shouldPresentLatestChangelog {
-            scheduleLatestChangelogPresentation()
+        }
         }
     }
 
@@ -112,7 +111,6 @@ final class MainTabBarController: UITabBarController, UITabBarControllerDelegate
         controller.removeFromParent()
         launchCelebrationController = nil
         GlobalRefresh2LaunchCelebration.markFinished()
-        scheduleLatestChangelogPresentation()
     }
 
     private func scheduleLatestChangelogPresentation() {

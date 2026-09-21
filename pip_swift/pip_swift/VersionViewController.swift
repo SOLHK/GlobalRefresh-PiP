@@ -683,6 +683,17 @@ struct AppChangelogSection {
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
         AppChangelogSection(
+            version: L10n.text("2.0.1 STRA Refresh · 控制台重新设计（26.9.22）", "2.0.1 STRA Refresh · New Control Room (2026.9.22)"),
+            items: [
+                L10n.text("顶部启动/关闭主按钮，下方双列最小化/高度与样式/指南操作", "Move Start/Stop to the top, followed by two-column minimize, height, style and guide controls."),
+                L10n.text("取消自动更新日志与通知授权弹窗；最小化成功不再要求点确定，关键异常提示保留", "No auto changelog or notification permission prompt; minimizing no longer opens a success dialog. Critical warnings remain."),
+                L10n.text("默认方案实际最低为0.1pt，PlayerLayer方案1pt，不冒称0.01pt已受支持", "Actual minimum remains 0.1 pt (1 pt for PlayerLayer); no unverified 0.01 pt claim.")
+            ]
+        )
+    }
+
+    static var version200: AppChangelogSection {
+        AppChangelogSection(
             version: L10n.text("2.0.0 STRA Refresh · 全新独立版（26.9.22）", "2.0.0 STRA Refresh · Independent Edition (2026.9.22)"),
             items: [
                 L10n.text("正式启用 STRA Refresh 品牌和 2.0.0 版本序列，安装包名称与中英文桌面名称统一", "Launch STRA Refresh branding and the 2.0.0 series, with consistent IPA and localized display names."),
@@ -946,6 +957,7 @@ final class ChangelogViewController: UIViewController {
 
         let stackView = UIStackView(arrangedSubviews: [
             makeSection(section: AppChangelogCatalog.latest),
+            makeSection(section: AppChangelogCatalog.version200),
             makeSection(section: AppChangelogCatalog.version111beta9),
             makeSection(section: AppChangelogCatalog.version111beta8),
             makeSection(section: AppChangelogCatalog.version111beta6),
