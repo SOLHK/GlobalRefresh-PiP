@@ -405,9 +405,10 @@ struct PiPHomeView: View {
                     dismissPiPStatusInfoIfNeededRespectingPersistence()
                     onToggleSettings()
                 } label: {
-                    SettingsGearButton(title: L10n.text("设置", "Settings"), isExpanded: isSettingsVisible)
+                    SettingsGearButton(title: layout.isNarrow ? "" : L10n.text("设置", "Settings"), isExpanded: isSettingsVisible)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(L10n.text("更多设置", "Settings"))
             }
             VStack(alignment: .leading, spacing: 5) {
                 Text(L10n.text("刷新控制台", "Refresh Console"))
@@ -580,9 +581,11 @@ struct PiPHomeView: View {
                 Image(systemName: "circle.grid.2x2")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(STRAStyle.accent)
-                Text(L10n.text("运行方案", "Engine"))
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(Color(UIColor.secondaryLabel))
+                if !layout.isNarrow {
+                    Text(L10n.text("运行方案", "Engine"))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Color(UIColor.secondaryLabel))
+                }
                 Spacer(minLength: 0)
                 engineRouteInfoButton
                 notificationInfoButton
