@@ -36,8 +36,13 @@ final class SimulatorUITests: XCTestCase {
             if index == 0 {
                 XCTAssertTrue(app.staticTexts["Refresh Console"].exists || app.staticTexts["刷新控制台"].exists,
                               "Home must show the redesigned control room")
-                XCTAssertTrue(app.buttons["stra.primaryPiP"].waitForExistence(timeout: 8))
-                XCTAssertTrue(app.buttons["stra.minimizePiP"].exists)
+                let primary = app.buttons["stra.primaryPiP"]
+                XCTAssertTrue(primary.waitForExistence(timeout: 8))
+                XCTAssertTrue(primary.label.contains("开启悬浮窗") || primary.label.contains("Start Floating Window"),
+                              "The unified primary action starts PiP while idle")
+                XCTAssertFalse(app.buttons["stra.minimizePiP"].exists, "Minimize is now the same primary button")
+                XCTAssertFalse(app.buttons["悬浮窗高度"].exists, "Home height editor tile must be removed")
+                XCTAssertFalse(app.buttons["Window Height"].exists)
                 XCTAssertFalse(app.buttons["切换样式"].exists)
                 XCTAssertFalse(app.buttons["使用指南"].exists)
             }
