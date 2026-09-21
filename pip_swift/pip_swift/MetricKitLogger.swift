@@ -75,7 +75,7 @@ final class MetricKitLogger: NSObject, MXMetricManagerSubscriber {
         let payloads = UserDefaults.standard.stringArray(forKey: storageKey) ?? []
 
         return """
-        全局高刷系统指标日志（MetricKit）
+        STRA高刷系统指标日志（MetricKit）
         App版本：\(version) (\(build))
         Bundle ID：\(bundleID)
         系统版本：iOS \(device.systemVersion)
