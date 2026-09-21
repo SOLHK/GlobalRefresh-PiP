@@ -15,6 +15,8 @@ ui = p.new_target(:ui_test_bundle, 'SimulatorUITests', :ios, '15.0')
     config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = "com.globalrefresh.tests.#{target.name}"
     config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
     config.build_settings['TARGETED_DEVICE_FAMILY'] = '1,2'
+    config.build_settings['FRAMEWORK_SEARCH_PATHS'] = ['$(inherited)', '$(BUILT_PRODUCTS_DIR)/SnapKit']
+    config.build_settings['LD_RUNPATH_SEARCH_PATHS'] = ['$(inherited)', '@executable_path/Frameworks', '@loader_path/Frameworks']
     if target == unit
       config.build_settings['TEST_HOST'] = '$(BUILT_PRODUCTS_DIR)/pip_swift.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/pip_swift'
       config.build_settings['BUNDLE_LOADER'] = '$(TEST_HOST)'
