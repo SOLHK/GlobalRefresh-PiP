@@ -47,6 +47,13 @@ private final class TabContentFadeAnimator: NSObject, UIViewControllerAnimatedTr
 final class MainTabBarController: UITabBarController, UITabBarControllerDelegate {
 
     private var refreshDisplayLink: CADisplayLink?
+    // Prevent lifecycle/demand notifications from restarting the driver after a lock event.
+    private var refreshDriverPausedForLock = !UIApplication.shared.isProtectedDataAvailable
+    private var refreshDriverSampleStartedAt: CFTimeInterval = 0
+    private var refreshDriverSampleCallbacks = 0
+#if DEBUG && targetEnvironment(simulator)
+    var simulatorHasRefreshDriver: Bool { refreshDisplayLink != nil }
+#endif
     private var pendingShortcutRetryWorkItems: [DispatchWorkItem] = []
     private var launchCelebrationController: UIHostingController<GlobalRefresh2LaunchCelebrationView>?
     private var latestChangelogController: LatestChangelogViewController?
@@ -231,6 +238,24 @@ final class MainTabBarController: UITabBarController, UITabBarControllerDelegate
         )
         NotificationCenter.default.addObserver(
             self,
+            selector: #selector(handleDeviceWillLock),
+            name: UIApplication.protectedDataWillBecomeUnavailableNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleDeviceDidUnlock),
+            name: UIApplication.protectedDataDidBecomeAvailableNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePowerThermalChange),
+            name: ProcessInfo.thermalStateDidChangeNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
             selector: #selector(handleLanguageDidChange),
             name: L10n.languageDidChangeNotification,
             object: nil
@@ -324,7 +349,18 @@ final class MainTabBarController: UITabBarController, UITabBarControllerDelegate
         }
     }
 
-    private func startRefreshDriver() {
+    private func startRefreshDriver(reason: String = "state change") {
+        // The lock event can precede the protected-data state change.
+        guard !refreshDriverPausedForLock, UIApplication.shared.isProtectedDataAvailable else {
+            stopRefreshDriver(reason: "device locked")
+            return
+        }
+        let thermalState = ProcessInfo.processInfo.thermalState
+        guard thermalState != .serious, thermalState != .critical,
+              floatingWindowController?.shouldPauseForPower != true else {
+            stopRefreshDriver(reason: "thermal or PiP power protection")
+            return
+        }
         let isPlayerLayerRouteEnabled = UserDefaults.standard.bool(forKey: "pip.home.playerLayerRouteEnabled")
         let isExtremeSilentModeEnabled = UserDefaults.standard.bool(forKey: "pip.home.extremeSilentModeEnabled")
         guard !isPlayerLayerRouteEnabled, !isExtremeSilentModeEnabled else {
@@ -336,24 +372,32 @@ final class MainTabBarController: UITabBarController, UITabBarControllerDelegate
             stopRefreshDriver(reason: "background without a PiP session")
             return
         }
-        // Reuse the existing driver across lifecycle and PiP state notifications.
+
         if let refreshDisplayLink {
             configureRefreshDriver(refreshDisplayLink)
+            if reason == "device unlocked" {
+                AppDebugLogger.logCritical("RefreshDriver unlock recovery: already running, background=\(UIApplication.shared.applicationState == .background), PiP=\(needsBackgroundDriver)")
+            }
             return
         }
 
-        let displayLink = CADisplayLink(target: self, selector: #selector(stepRefreshDriver))
+        let displayLink = CADisplayLink(target: self, selector: #selector(stepRefreshDriver(_:)))
         configureRefreshDriver(displayLink)
-        // Use the 1.0.7 driver mode for every supported iOS version; hidden 0.1 pt PiP depends on this driver more than visible PiP content.
+        // Keep the existing 1.0.7 strict driver request for hidden 0.1 pt PiP.
         displayLink.add(to: .main, forMode: .common)
         refreshDisplayLink = displayLink
+        refreshDriverSampleStartedAt = 0
+        refreshDriverSampleCallbacks = 0
+        AppDebugLogger.logCritical("RefreshDriver started: reason=\(reason), background=\(UIApplication.shared.applicationState == .background), PiP=\(needsBackgroundDriver), requested=\(min(FrameRatePreference.targetFrameRate, UIScreen.main.maximumFramesPerSecond))Hz")
     }
 
     private func stopRefreshDriver(reason: String) {
         guard refreshDisplayLink != nil else { return }
         refreshDisplayLink?.invalidate()
         refreshDisplayLink = nil
-        AppDebugLogger.log("RefreshDriver stopped: \(reason)")
+        refreshDriverSampleStartedAt = 0
+        refreshDriverSampleCallbacks = 0
+        AppDebugLogger.logCritical("RefreshDriver stopped: \(reason)")
     }
 
     @objc private func handleFrameRatePreferenceChange() {
@@ -373,13 +417,32 @@ final class MainTabBarController: UITabBarController, UITabBarControllerDelegate
     }
 
     @objc private func handleAppDidBecomeActive() {
+        FrameStutterMonitor.resumeForForeground()
         startRefreshDriver()
         schedulePendingShortcutActionChecks(reason: "App激活")
         presentShortcutDisabledAlertIfNeeded()
     }
 
     @objc private func handleAppDidEnterBackground() {
-        startRefreshDriver()
+        FrameStutterMonitor.pauseForBackground()
+        startRefreshDriver(reason: "entered background")
+    }
+
+    @objc private func handleDeviceWillLock() {
+        refreshDriverPausedForLock = true
+        stopRefreshDriver(reason: "device locked")
+    }
+
+    @objc private func handleDeviceDidUnlock() {
+        refreshDriverPausedForLock = false
+        startRefreshDriver(reason: "device unlocked")
+        // If ViewController receives unlock afterwards, its refresh-demand event
+        // will retry once its PiP power-pause flag has cleared.
+        AppDebugLogger.logCritical("RefreshDriver unlock check: running=\(refreshDisplayLink != nil), PiP=\(floatingWindowController?.needsBackgroundRefreshDriver ?? false), background=\(UIApplication.shared.applicationState == .background), thermal=\(ProcessInfo.processInfo.thermalState.rawValue)")
+    }
+
+    @objc private func handlePowerThermalChange() {
+        startRefreshDriver(reason: "thermal state changed")
     }
 
     @objc private func handleLanguageDidChange() {
@@ -488,7 +551,29 @@ final class MainTabBarController: UITabBarController, UITabBarControllerDelegate
         return pipController.performPendingShortcutActionIfNeeded(reason: reason)
     }
 
-    @objc private func stepRefreshDriver() {
+    @objc private func stepRefreshDriver(_ displayLink: CADisplayLink) {
+        // Preserve the strict frame-rate request without sampling in normal use.
+        guard AppDebugLogger.isDebugModeEnabled else { return }
+        // Measures this app's CADisplayLink callbacks, never another app's FPS.
+        let timestamp = displayLink.timestamp
+        if refreshDriverSampleStartedAt == 0 {
+            refreshDriverSampleStartedAt = timestamp
+            refreshDriverSampleCallbacks = 0
+            return
+        }
+        refreshDriverSampleCallbacks += 1
+        let elapsed = timestamp - refreshDriverSampleStartedAt
+        guard elapsed >= 10 else { return }
+        let callbacks = refreshDriverSampleCallbacks
+        refreshDriverSampleStartedAt = timestamp
+        refreshDriverSampleCallbacks = 0
+        if AppDebugLogger.isDebugModeEnabled {
+            if elapsed <= 20 {
+                AppDebugLogger.log("RefreshDriver callbacks: \(Int((Double(callbacks) / elapsed).rounded()))Hz over \(Int(elapsed))s, app driver only")
+            } else {
+                AppDebugLogger.log("RefreshDriver sampling interrupted for \(Int(elapsed))s; possible system suspension")
+            }
+        }
     }
 
     private func configureRefreshDriver(_ displayLink: CADisplayLink) {

@@ -1,0 +1,45 @@
+name: iOS 27 release simulator validation
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/power-saving-beta2]
+    paths: ['pip_swift/**', 'ci/**', '.github/workflows/ios27-release-validation.yml']
+permissions:
+  contents: read
+jobs:
+  simulator:
+    runs-on: xcode-27
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate SOLHK app icons
+        run: python3 ci/generate-solhk-icons.py
+      - name: Configure hosted XCTest and UI test targets
+        run: |
+          gem install --user-install xcodeproj --no-document
+          ruby ci/configure-simulator-tests.rb
+      - name: Verify and boot iOS 27.0 release simulator (24A434)
+        run: python3 ci/select-ios27-release.py
+      - name: Run app-hosted lifecycle tests and UI tests
+        run: |
+          set -o pipefail
+          xcodebuild test -workspace pip_swift/pip_swift.xcworkspace -scheme SimulatorValidation -configuration Debug -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath simulator-build -resultBundlePath SimulatorResults.xcresult -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO 2>&1 | tee simulator-tests.log
+      - name: Collect test report and screen capture
+        if: always()
+        run: |
+          mkdir -p simulator-evidence
+          cp simulator-tests.log simulator-evidence/ 2>/dev/null || true
+          xcrun simctl io "$SIMULATOR_ID" screenshot simulator-evidence/final-screen.png || true
+          xcrun xcresulttool get test-results summary --path SimulatorResults.xcresult --format json > simulator-evidence/summary.json || true
+          xcrun xcresulttool export attachments --path SimulatorResults.xcresult --output-path simulator-evidence/attachments || true
+          cat simulator-evidence/summary.json
+          sips -Z 640 -s format jpeg -s formatOptions 55 simulator-evidence/final-screen.png --out /tmp/simulator-screen.jpg >/dev/null || true
+          python3 -c 'import pathlib,base64; p=pathlib.Path("/tmp/simulator-screen.jpg"); print("SIM_SCREEN_BASE64="+base64.b64encode(p.read_bytes()).decode()) if p.exists() else None'
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: iOS27-release-simulator-test-results
+          path: |
+            simulator-evidence
+            SimulatorResults.xcresult

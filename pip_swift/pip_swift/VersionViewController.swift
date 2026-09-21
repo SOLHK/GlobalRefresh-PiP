@@ -31,7 +31,6 @@ struct AppUpdateInfo {
     let notes: String
     let releaseURL: URL
     let releaseNotes: [String]
-    let cloudDriveURL: URL
     let githubReleasesURL: URL
 
     var latestVersion: String { version }
@@ -52,14 +51,14 @@ enum AppUpdateChecker {
         }
     }
 
-    private static let updateRepository = "Yoroin/GlobalRefresh-PiP"
+    // This independently maintained edition must never offer the upstream author's builds as its own updates.
+    private static let updateRepository = "SOLHK/GlobalRefresh-PiP"
     private static let latestReleaseAPI = URL(
         string: "https://api.github.com/repos/\(updateRepository)/releases/latest"
     )!
     private static let allReleasesAPI = URL(
         string: "https://api.github.com/repos/\(updateRepository)/releases?per_page=30"
     )!
-    private static let cloudDriveURL = URL(string: "https://1811629626.share.123pan.cn/123pan/KDFRVv-UEPfh")!
     private static let githubReleasesURL = URL(string: "https://github.com/\(updateRepository)/releases")!
     private static let updateSession: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
@@ -99,8 +98,16 @@ enum AppUpdateChecker {
             if let error {
                 result = .failure(error)
             } else if let httpResponse = response as? HTTPURLResponse,
+                      httpResponse.statusCode == 404 {
+                // An independent edition can legitimately have no Releases yet.
+                result = .success(nil)
+            } else if let httpResponse = response as? HTTPURLResponse,
                       !(200..<300).contains(httpResponse.statusCode) {
                 result = .failure(UpdateCheckError.httpStatus(httpResponse.statusCode))
+            } else if let data, includePrereleases,
+                      let releases = try? JSONDecoder().decode([Release].self, from: data),
+                      releases.allSatisfy({ $0.isDraft }) {
+                result = .success(nil)
             } else if let data {
                 do {
                     let release: Release
@@ -127,7 +134,6 @@ enum AppUpdateChecker {
                             notes: release.body ?? "",
                             releaseURL: release.htmlURL,
                             releaseNotes: releaseNotes(from: release.body ?? ""),
-                            cloudDriveURL: cloudDriveURL,
                             githubReleasesURL: githubReleasesURL
                         )
                         : nil
@@ -618,6 +624,12 @@ final class VersionViewController: UIViewController {
             KeepAliveLogger.resetLogs()
             MetricKitLogger.shared.resetLogs()
             PowerUsageLogger.startFreshStatistics()
+            // Debug mode may be enabled after an existing PiP has already started.
+            // Its didStart callback will not repeat, so seed an active session here.
+            if let home = tabBarController?.viewControllers?.compactMap({ $0 as? ViewController }).first,
+               home.hasActivePiPForDiagnostics {
+                PowerUsageLogger.markPiPStart()
+            }
             MetricKitLogger.shared.start()
             DebugDiagnosticsMonitor.setEnabled(true)
             ProcessTerminationDiagnostics.prepareForLaunch()
@@ -671,13 +683,52 @@ struct AppChangelogSection {
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
         AppChangelogSection(
-            version: L10n.text("1.1.1-beta1 优化测试版（26.9.20）", "1.1.1-beta1 Optimized Test Build (2026.9.20)"),
+            version: L10n.text("1.1.1-beta8 STRA高刷低功耗与简约图标（26.9.21）", "1.1.1-beta8 STRA Refresh Low Power and Icon (2026.9.21)"),
             items: [
-                L10n.text("无悬浮窗会话时，进入后台停止主高刷驱动，减少无效运行", "Stop the main refresh driver in the background when no PiP session is needed."),
-                L10n.text("复用主高刷驱动，减少前后台切换及状态变化时的重复创建", "Reuse the main refresh driver across lifecycle and session changes."),
-                L10n.text("悬浮窗启动、停止及失效时同步驱动需求；保留0.1pt隐藏时的高刷请求", "Update driver demand on PiP transitions; preserve refresh requests for hidden 0.1pt PiP."),
-                L10n.text("高刷开关更名，明确其同时影响悬浮窗", "Clarify that the refresh toggle also affects PiP."),
-                L10n.text("基于CaiWanFeng / Yoroin项目的独立优化测试版，非上游官方更新；实际帧率和耗电改善待实机验证", "Independent test build based on CaiWanFeng / Yoroin, not an upstream release. Frame-rate and power improvements need device testing.")
+                L10n.text("更换简约银白S图标；锁屏与后台停止无意义的调试帧监控", "Use a minimalist silver S icon; pause unnecessary background and lock-screen stutter diagnostics."),
+                L10n.text("复制耗电日志时按真实画中画状态修复运行时长统计", "Reconcile real PiP state before exporting power-use statistics."),
+                L10n.text("非调试状态高刷驱动不逐帧采样，保留原有锁屏停止和解锁自动恢复", "Skip per-frame driver sampling outside debug mode; preserve lock power saving and automatic unlock recovery.")
+            ]
+        )
+    }
+
+    static var version111beta6: AppChangelogSection {
+        AppChangelogSection(
+            version: L10n.text("1.1.1-beta6 SOLHK 独立版界面（26.9.21）", "1.1.1-beta6 SOLHK Independent Edition (2026.9.21)"),
+            items: [
+                L10n.text("启用 SOLHK 独立版名称、深浅色双主题渐变与全新高刷控制台布局", "Introduce SOLHK edition branding, adaptive gradient theme and refreshed control dashboard."),
+                L10n.text("更新首页、启动页、关于页与应用图标，移除旧版测试水印", "Redesign Home, launch and About pages and app icon; remove tiled beta watermark."),
+                L10n.text("更新检测仅指向 SOLHK 仓库，删除原作者云盘下载入口", "Check updates only in SOLHK's repository; remove upstream cloud-drive link."),
+                L10n.text("在关于页保留 CaiWanFeng 和 Yoroin 上游开源致谢；不改变 beta5 驱动及锁屏逻辑", "Keep upstream OSS credits in About; leave beta5 refresh/lock logic unchanged.")
+            ]
+        )
+    }
+
+    static var version111beta5: AppChangelogSection {
+        AppChangelogSection(
+            version: L10n.text("1.1.1-beta5 解锁高刷恢复测试版（26.9.21）", "1.1.1-beta5 Unlock Refresh Recovery (2026.9.21)"),
+            items: [
+                L10n.text("锁屏停止高刷驱动，解锁时在后台直接检查并尝试恢复；无需手动重新打开App", "Stop the extra refresh driver on lock; attempt its recovery on unlock in the background without reopening the app."),
+                L10n.text("补充驱动启动、停止和解锁恢复状态日志，避免仅看画中画开启就误判高刷生效", "Log driver start, stop and unlock recovery separately from PiP status."),
+                L10n.text("调试模式每约10秒记录本App驱动回调频率；不是其他App的实际帧率", "Sample this app's display-link callback rate about every 10 seconds in debug mode; it is not other apps' FPS."),
+                L10n.text("保留beta4低功耗锁屏和温度保护；系统暂停后台执行时不能保证立即恢复", "Preserve beta4 lock-screen savings and thermal protection; iOS suspension may delay recovery.")
+            ]
+        )
+    }
+
+    static var version111beta4: AppChangelogSection {
+        AppChangelogSection(
+            version: L10n.text("1.1.1-beta4 节能修复测试版（26.9.21）", "1.1.1-beta4 Power Fix Test (2026.9.21)"),
+            items: [
+                L10n.text("修复锁屏保留会话时，首页更新重新启动每秒计时刷新的问题", "Prevent home updates from restarting the runtime UI timer while PiP is paused on lock."),
+                L10n.text("后台及离开首页时停止运行时间刷新，返回首页后按时间戳恢复显示", "Stop runtime UI refresh in the background and off the home tab; restore elapsed time from timestamps."),
+                L10n.text("修复播放检查先检测到锁屏时丢失自动恢复意图；视频等待播放时不再反复调用播放", "Preserve unlock recovery when the playback watchdog detects lock first; avoid repeated play calls while waiting."),
+                L10n.text("锁屏时保留已建立的画中画会话，暂停高刷驱动、内容刷新、播放及音频保活", "Keep established PiP on lock while pausing refresh drivers, content updates, playback and silent audio."),
+                L10n.text("收到解锁通知后自动恢复；会话被系统停止时尝试一次重启，回到应用时再次尝试", "Resume on unlock notification. If PiP was stopped, attempt a bounded restart; retry on foreground activation."),
+                L10n.text("自动重启成功后恢复锁屏前的悬浮窗高度；手动操作取消待恢复状态", "Restore previous PiP height after recovery; explicit user actions cancel pending recovery."),
+                L10n.text("不增加静音保活或后台轮询。iOS挂起或结束应用、拒绝后台PiP启动时，无法保证解锁自动恢复", "No extra silent audio or background polling. Auto-resume is not guaranteed if iOS suspends or terminates the app or denies background PiP start."),
+                L10n.text("保留严重过热停止保护和低频播放检查。锁屏信号可能延迟；功耗、温度和全局高刷均需真机验证", "Keep thermal protection and low-frequency playback checks. Lock signals may be delayed; device testing is required."),
+                L10n.text("基于CaiWanFeng / Yoroin项目的独立测试版", "Independent test build based on CaiWanFeng / Yoroin.")
             ]
         )
     }
@@ -872,6 +923,9 @@ final class ChangelogViewController: UIViewController {
 
         let stackView = UIStackView(arrangedSubviews: [
             makeSection(section: AppChangelogCatalog.latest),
+            makeSection(section: AppChangelogCatalog.version111beta6),
+            makeSection(section: AppChangelogCatalog.version111beta5),
+            makeSection(section: AppChangelogCatalog.version111beta4),
             makeSection(section: AppChangelogCatalog.version110fix),
             makeSection(section: AppChangelogCatalog.version110),
             makeSection(
@@ -1096,8 +1150,6 @@ private final class UpdateAvailableViewController: UIViewController {
         scrollView.addSubview(items)
         card.addSubview(scrollView)
 
-        let cloudButton = makeLinkButton(title: L10n.text("123云盘", "123 Cloud"))
-        cloudButton.addTarget(self, action: #selector(openCloudDrive), for: .touchUpInside)
         let githubButton = makeLinkButton(title: "GitHub")
         githubButton.addTarget(self, action: #selector(openGitHub), for: .touchUpInside)
         let skipButton = makeLinkButton(title: L10n.text("跳过本次更新", "Skip This Update"))
@@ -1105,10 +1157,7 @@ private final class UpdateAvailableViewController: UIViewController {
         let laterButton = makeLinkButton(title: L10n.text("稍后", "Later"), primary: true)
         laterButton.addTarget(self, action: #selector(dismissTapped), for: .touchUpInside)
 
-        let links = UIStackView(arrangedSubviews: [cloudButton, githubButton])
-        links.axis = .vertical
-        links.spacing = 8
-        let buttons = UIStackView(arrangedSubviews: [links, skipButton, laterButton])
+        let buttons = UIStackView(arrangedSubviews: [githubButton, skipButton, laterButton])
         buttons.axis = .vertical
         buttons.spacing = 6
         card.addSubview(buttons)
@@ -1143,7 +1192,6 @@ private final class UpdateAvailableViewController: UIViewController {
             buttons.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 22),
             buttons.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -22),
             buttons.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -16),
-            cloudButton.heightAnchor.constraint(equalToConstant: 42),
             githubButton.heightAnchor.constraint(equalToConstant: 42),
             skipButton.heightAnchor.constraint(equalToConstant: 42),
             laterButton.heightAnchor.constraint(equalToConstant: 42)
@@ -1176,10 +1224,6 @@ private final class UpdateAvailableViewController: UIViewController {
         button.configuration = configuration
         button.titleLabel?.font = .systemFont(ofSize: 15, weight: .bold)
         return button
-    }
-
-    @objc private func openCloudDrive() {
-        UIApplication.shared.open(update.cloudDriveURL)
     }
 
     @objc private func openGitHub() {

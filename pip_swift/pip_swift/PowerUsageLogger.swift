@@ -79,6 +79,15 @@ enum PowerUsageLogger {
 
     static func exportText() -> String {
         UIDevice.current.isBatteryMonitoringEnabled = true
+        // PiP may have been activated before debug mode or statistics reset.
+        // Reconcile the real session before exporting instead of reporting zero.
+        let activePiP = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .compactMap { $0.rootViewController as? MainTabBarController }
+            .compactMap { $0.viewControllers?.first as? ViewController }
+            .contains { $0.hasActivePiPForDiagnostics }
+        if activePiP { markPiPStart() } else { markPiPStop() }
         if !shouldTrackState {
             resetStatistics()
         }
@@ -93,7 +102,7 @@ enum PowerUsageLogger {
         let launchText = launchTimestamp > 0 ? beijingFormatter.string(from: Date(timeIntervalSince1970: launchTimestamp)) : "unknown"
 
         return """
-        全局高刷耗电辅助日志
+        STRA高刷耗电辅助日志
         App版本：\(version) (\(build))
         Bundle ID：\(bundleID)
         系统版本：iOS \(device.systemVersion)

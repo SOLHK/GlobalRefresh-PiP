@@ -82,8 +82,28 @@ struct GlobalRefresh2LaunchCelebrationView: View {
                     .frame(width: 1, height: 1)
                     .allowsHitTesting(false)
 
-                Color(UIColor.systemGroupedBackground)
-                    .ignoresSafeArea()
+                ZStack {
+                    Color(UIColor.systemGroupedBackground)
+                    RadialGradient(
+                        colors: [
+                            Color(red: 0.10, green: 0.68, blue: 0.94).opacity(0.17),
+                            .clear
+                        ],
+                        center: .topLeading,
+                        startRadius: 12,
+                        endRadius: 490
+                    )
+                    RadialGradient(
+                        colors: [
+                            Color(red: 0.43, green: 0.38, blue: 0.95).opacity(0.12),
+                            .clear
+                        ],
+                        center: .bottomTrailing,
+                        startRadius: 0,
+                        endRadius: 420
+                    )
+                }
+                .ignoresSafeArea()
 
                 Group {
                     if page == .celebration {
@@ -115,14 +135,14 @@ struct GlobalRefresh2LaunchCelebrationView: View {
             scheduledFinish?.cancel()
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(L10n.text("全局高刷 \(L10n.versionDisplay)", "Global Refresh \(L10n.versionDisplay)")))
+        .accessibilityLabel(Text(L10n.text("STRA高刷 \(L10n.versionDisplay)", "STRA Refresh \(L10n.versionDisplay)")))
         .accessibilityAddTraits(.isButton)
         .accessibilityHint(Text(L10n.text("轻触继续或跳过启动动画", "Tap to continue or skip the launch animation")))
     }
 
     private func celebrationPage(proxy: GeometryProxy) -> some View {
         VStack(spacing: 0) {
-            Text(L10n.text("全局高刷悬浮窗", "Global Refresh PiP"))
+            Text(L10n.text("STRA / REFRESH LAB", "STRA / REFRESH LAB"))
                 .font(.system(size: 12, weight: .black, design: .rounded))
                 .foregroundColor(Color(UIColor.secondaryLabel))
                 .tracking(0.8)
@@ -135,7 +155,7 @@ struct GlobalRefresh2LaunchCelebrationView: View {
                 .scaleEffect(isContentVisible ? 1 : 0.68)
                 .opacity(isContentVisible ? 1 : 0)
 
-            Text(L10n.text("全局高刷", "Global Refresh"))
+            Text(L10n.appName)
                 .font(.system(size: 42, weight: .black, design: .rounded))
                 .foregroundColor(Color(UIColor.label))
                 .lineLimit(1)
@@ -150,7 +170,7 @@ struct GlobalRefresh2LaunchCelebrationView: View {
                 .background(launchVersionBackground)
                 .padding(.top, 12)
 
-            Text(L10n.text("正在准备高刷体验", "Preparing your refresh experience"))
+            Text(L10n.text("独立维护 · 低功耗高刷实验", "Independent · Low-power refresh experiment"))
                 .font(.system(size: 15, weight: .bold))
                 .foregroundColor(Color(UIColor.secondaryLabel))
                 .padding(.top, 18)

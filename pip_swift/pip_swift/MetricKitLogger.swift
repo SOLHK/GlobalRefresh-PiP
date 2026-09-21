@@ -28,7 +28,7 @@ final class MetricKitLogger: NSObject, MXMetricManagerSubscriber {
         isStarted = true
         MXMetricManager.shared.add(self)
         importPastPayloads()
-        AppDebugLogger.log("BETA5 MetricKit订阅已启动")
+        AppDebugLogger.log("MetricKit订阅已启动")
     }
 
     func stop() {
@@ -45,13 +45,13 @@ final class MetricKitLogger: NSObject, MXMetricManagerSubscriber {
             "系统新回调：指标=\(payloads.count)，\(summary)",
             forKey: historyStatusKey
         )
-        AppDebugLogger.logCritical("BETA5 MetricKit收到指标：\(payloads.count)条；\(summary)")
+        AppDebugLogger.logCritical("MetricKit收到指标：\(payloads.count)条；\(summary)")
     }
 
     func didReceive(_ payloads: [MXDiagnosticPayload]) {
         guard AppDebugLogger.isDebugModeEnabled else { return }
         appendPayloads(payloads.map { $0.jsonRepresentation() }, source: "系统新回调诊断")
-        AppDebugLogger.logCritical("BETA5 MetricKit收到诊断载荷：\(payloads.count)条")
+        AppDebugLogger.logCritical("MetricKit收到诊断载荷：\(payloads.count)条")
     }
 
     func copyToPasteboard() {
@@ -75,7 +75,7 @@ final class MetricKitLogger: NSObject, MXMetricManagerSubscriber {
         let payloads = UserDefaults.standard.stringArray(forKey: storageKey) ?? []
 
         return """
-        全局高刷系统指标日志（MetricKit）
+        STRA高刷系统指标日志（MetricKit）
         App版本：\(version) (\(build))
         Bundle ID：\(bundleID)
         系统版本：iOS \(device.systemVersion)
@@ -86,7 +86,7 @@ final class MetricKitLogger: NSObject, MXMetricManagerSubscriber {
         指标来源：Apple MetricKit，本机系统后台汇总生成，不联网。
         数据说明：MetricKit 通常需要约24小时才会回调每日系统指标；刚安装或使用时间太短时可能为空。
 
-        BETA5历史退出指标读取：
+        历史退出指标读取：
         \(UserDefaults.standard.string(forKey: historyStatusKey) ?? "尚未读取；请确认调试模式已开启并重新进入App。")
 
         最近系统指标：
@@ -112,7 +112,7 @@ final class MetricKitLogger: NSObject, MXMetricManagerSubscriber {
         let exitSummary = historicalExitSummary(from: metricPayloads)
         let status = "历史指标=\(metricPayloads.count)条，历史诊断=\(diagnosticPayloads.count)条；\(exitSummary)"
         UserDefaults.standard.set(status, forKey: historyStatusKey)
-        AppDebugLogger.logCritical("BETA5 MetricKit历史读取完成：\(status)")
+        AppDebugLogger.logCritical("MetricKit历史读取完成：\(status)")
     }
 
     private func appendPayloads(_ payloadData: [Data], source: String) {

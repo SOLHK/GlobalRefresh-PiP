@@ -28,9 +28,14 @@ enum AppDebugLogger {
     private static var memoryBuffer: [String] = []
     private static var memoryBufferBytes = 0
 
+    // Read by the 120Hz display link: cache to avoid per-frame preferences lookup.
+    private static var cachedDebugModeEnabled = UserDefaults.standard.bool(forKey: debugModeKey)
     static var isDebugModeEnabled: Bool {
-        get { UserDefaults.standard.bool(forKey: debugModeKey) }
-        set { UserDefaults.standard.set(newValue, forKey: debugModeKey) }
+        get { cachedDebugModeEnabled }
+        set {
+            cachedDebugModeEnabled = newValue
+            UserDefaults.standard.set(newValue, forKey: debugModeKey)
+        }
     }
 
     // 启动时清理旧积压数据，并加载历史日志到内存
@@ -148,7 +153,7 @@ enum AppDebugLogger {
             : ""
 
         return """
-        全局高刷调试日志
+        STRA高刷调试日志
         App版本：\(version) (\(build))
         Bundle ID：\(bundleID)
         系统版本：iOS \(device.systemVersion)
@@ -413,6 +418,13 @@ enum MainThreadWatchdog {
             source.schedule(deadline: .now() + pingInterval, repeating: pingInterval)
             source.setEventHandler {
                 let now = Date()
+                // An iOS background/lock suspension is not a foreground UI hang.
+                guard DiagnosticsRuntimeState.isForegroundActive else {
+                    lastBeat = now
+                    isHanging = false
+                    hasPendingPing = false
+                    return
+                }
                 let gap = now.timeIntervalSince(lastBeat)
                 if gap > threshold {
                     let isForegroundActive = DiagnosticsRuntimeState.isForegroundActive
@@ -513,6 +525,7 @@ enum FrameStutterMonitor {
             // BETA2 ANCHOR: 调试帧监控避开 tracking mode，避免监控本身影响滑动手感。
             link.add(to: .main, forMode: .default)
             displayLink = link
+            link.isPaused = UIApplication.shared.applicationState != .active
             AppDebugLogger.log("Frame stutter monitor started")
         }
     }
@@ -525,7 +538,25 @@ enum FrameStutterMonitor {
         }
     }
 
+    static func pauseForBackground() {
+        DispatchQueue.main.async {
+            displayLink?.isPaused = true
+            lastTimestamp = 0
+        }
+    }
+
+    static func resumeForForeground() {
+        DispatchQueue.main.async {
+            lastTimestamp = 0
+            displayLink?.isPaused = false
+        }
+    }
+
     fileprivate static func handleStep(_ displayLink: CADisplayLink) {
+        guard DiagnosticsRuntimeState.isForegroundActive else {
+            lastTimestamp = 0
+            return
+        }
         guard lastTimestamp > 0 else {
             lastTimestamp = displayLink.timestamp
             return
@@ -587,7 +618,7 @@ enum PerformanceDiagnosticsLogger {
             let source = DispatchSource.makeTimerSource(queue: queue)
             source.schedule(deadline: .now() + 2, repeating: 60, leeway: .seconds(3))
             source.setEventHandler {
-                guard !isRuntimeSamplingSuppressed else { return }
+                guard !isRuntimeSamplingSuppressed, DiagnosticsRuntimeState.isForegroundActive else { return }
                 let snapshot = makeSnapshot()
                 AppDebugLogger.log(snapshot)
                 DispatchQueue.main.async {

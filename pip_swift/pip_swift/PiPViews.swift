@@ -32,8 +32,8 @@ private struct AdaptiveLayoutMetrics {
     var homeContainerHorizontalPadding: CGFloat { isNarrow ? 4 : 8 }
     var homePrimaryBottomPadding: CGFloat { isCompact ? 16 : 40 }
     var homePrimaryHorizontalPadding: CGFloat { isNarrow ? 18 : 28 }
-    var homeKeepAliveInfoTop: CGFloat { isCompact ? 98 : 116 }
-    var homeSettingsTop: CGFloat { isCompact ? 66 : 82 }
+    var homeKeepAliveInfoTop: CGFloat { isCompact ? 118 : 136 }
+    var homeSettingsTop: CGFloat { isCompact ? 85 : 102 }
     var homeSettingsTrailing: CGFloat { isNarrow ? 12 : 20 }
     var homePiPStatusInfoTop: CGFloat {
         isCompact ? min(354, max(300, longSide - 214)) : 406
@@ -61,6 +61,54 @@ private struct AdaptiveLayoutMetrics {
     var infoPanelWidth282: CGFloat { min(282, shortSide - 24) }
     var infoPanelWidth254: CGFloat { min(254, shortSide - 24) }
 
+}
+
+// STRA visual identity. Purely static gradients: no animation or background timer.
+private enum STRAStyle {
+    static let accent = Color(red: 0.10, green: 0.68, blue: 0.94)
+    static let secondary = Color(red: 0.43, green: 0.38, blue: 0.95)
+
+    static var canvas: some View {
+        ZStack {
+            Color(UIColor.systemGroupedBackground)
+            RadialGradient(
+                colors: [accent.opacity(0.14), .clear],
+                center: .topLeading,
+                startRadius: 16,
+                endRadius: 380
+            )
+            RadialGradient(
+                colors: [secondary.opacity(0.10), .clear],
+                center: .bottomTrailing,
+                startRadius: 0,
+                endRadius: 360
+            )
+        }
+        .ignoresSafeArea()
+        .accessibilityHidden(true)
+    }
+
+    static var editionMark: some View {
+        HStack(spacing: 7) {
+            Image(systemName: "bolt.circle.fill")
+                .font(.system(size: 15, weight: .bold))
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(accent, accent.opacity(0.17))
+            Text("STRA")
+                .font(.system(size: 11, weight: .black, design: .rounded))
+                .tracking(1.6)
+                .foregroundColor(accent)
+            Capsule()
+                .fill(accent.opacity(0.33))
+                .frame(width: 1, height: 11)
+            Text(L10n.editionLabel)
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .foregroundColor(Color(UIColor.secondaryLabel))
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+        }
+        .accessibilityElement(children: .combine)
+    }
 }
 
 struct PageHeaderTitle: View {
@@ -149,8 +197,7 @@ struct PiPHomeView: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            Color(UIColor.systemGroupedBackground)
-                .edgesIgnoringSafeArea(.all)
+            STRAStyle.canvas
                 .contentShape(Rectangle())
                 .onTapGesture {
                     dismissKeepAliveInfoIfNeeded()
@@ -160,12 +207,6 @@ struct PiPHomeView: View {
                     dismissEngineRouteInfoIfNeeded()
                     dismissSettingsIfNeeded()
                 }
-
-            if L10n.isBetaBuild {
-                homeTestingWatermark
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
 
 	            VStack(alignment: .leading, spacing: layout.homeOuterSpacing) {
 	                homeHeader
@@ -309,8 +350,11 @@ struct PiPHomeView: View {
 
     private var homeHeader: some View {
         VStack(alignment: .leading, spacing: 7) {
+            STRAStyle.editionMark
+                .padding(.bottom, 1)
+
             HStack(alignment: .center) {
-                Text(L10n.home)
+                Text(L10n.appName)
                     .font(.system(size: layout.headerTitleSize, weight: .black, design: .rounded))
                     .foregroundColor(Color(UIColor.label))
                     .lineLimit(1)
@@ -423,53 +467,6 @@ struct PiPHomeView: View {
         .padding(.vertical, layout.isCompact ? 6 : 7)
         .frame(maxWidth: layout.isNarrow ? 246 : 268, minHeight: 30, alignment: .center)
         .background(homeStatusLabelBackground)
-    }
-
-    private var homeTestingWatermark: some View {
-        GeometryReader { proxy in
-            let rows = watermarkRows(for: proxy.size)
-            let columns = watermarkColumns(for: proxy.size)
-            ZStack {
-                ForEach(0..<rows, id: \.self) { row in
-                    ForEach(0..<columns, id: \.self) { column in
-                        Text(L10n.text("测试用", "TEST"))
-                            .font(.system(size: watermarkFontSize(for: proxy.size), weight: .black, design: .rounded))
-                            .foregroundColor(Color(UIColor.systemRed).opacity(0.14))
-                            .lineLimit(1)
-                            .rotationEffect(.degrees(-24))
-                            .position(
-                                x: watermarkX(column: column, row: row, columns: columns, size: proxy.size),
-                                y: watermarkY(row: row, rows: rows, size: proxy.size)
-                            )
-                    }
-                }
-            }
-            .frame(width: proxy.size.width, height: proxy.size.height)
-        }
-        .ignoresSafeArea()
-    }
-
-    private func watermarkFontSize(for size: CGSize) -> CGFloat {
-        min(max(min(size.width, size.height) * 0.105, 34), 46)
-    }
-
-    private func watermarkRows(for size: CGSize) -> Int {
-        max(4, Int((size.height / 150).rounded(.up)) + 1)
-    }
-
-    private func watermarkColumns(for size: CGSize) -> Int {
-        max(3, Int((size.width / 210).rounded(.up)) + 1)
-    }
-
-    private func watermarkX(column: Int, row: Int, columns: Int, size: CGSize) -> CGFloat {
-        let spacing = size.width / CGFloat(max(columns - 1, 1))
-        let stagger = row.isMultiple(of: 2) ? 0 : spacing * 0.48
-        return CGFloat(column) * spacing - spacing * 0.25 + stagger
-    }
-
-    private func watermarkY(row: Int, rows: Int, size: CGSize) -> CGFloat {
-        let spacing = size.height / CGFloat(max(rows - 1, 1))
-        return CGFloat(row) * spacing - spacing * 0.15
     }
 
     private var homeStatusLabelBackground: AnyView {
@@ -1662,8 +1659,7 @@ struct VersionPageView: View {
 
     var body: some View {
         ZStack {
-            Color(UIColor.systemGroupedBackground)
-                .edgesIgnoringSafeArea(.all)
+            STRAStyle.canvas
                 .onTapGesture {
                     dismissDebugPanel()
                     dismissKeepAliveInfoPanel()
@@ -1743,7 +1739,9 @@ struct VersionPageView: View {
             .frame(maxHeight: .infinity, alignment: .top)
 
             VStack(spacing: layout.versionMainSpacing) {
-                Text(L10n.text("全局高刷悬浮窗", "Global Refresh PiP"))
+                STRAStyle.editionMark
+
+                Text(L10n.appName)
                     .font(.system(size: layout.versionTitleSize, weight: .black, design: .rounded))
                     .foregroundColor(Color(UIColor.label))
                     .lineLimit(1)
@@ -2031,7 +2029,7 @@ struct VersionPageView: View {
         dismissKeepAliveInfoPanel()
         dismissBetaInfoPanel()
         dismissDebugPanel()
-        if let url = URL(string: "https://github.com/Yoroin/GlobalRefresh-PiP") {
+        if let url = URL(string: "https://github.com/SOLHK/GlobalRefresh-PiP") {
             UIApplication.shared.open(url)
         }
     }
@@ -2919,20 +2917,31 @@ private struct VersionDescriptionView: View {
     let languageIdentity: String
 
     var body: some View {
-        VStack(spacing: isCompact ? 4 : 6) {
-            Text(L10n.text("增加悬浮窗后台保活和修改侧边栏大小功能，", "Adds PiP background keep-alive and side-window sizing,"))
-            Text(L10n.text("挂在侧边栏可保持系统全局120hz，", "keeps system-wide 120 Hz when docked to the edge,"))
-            Text(L10n.text("适配ios26液态玻璃特性", "and supports iOS 26 Liquid Glass."))
-            HStack(spacing: 0) {
-                Text(L10n.text("原作者：", "Original: "))
+        VStack(spacing: isCompact ? 5 : 8) {
+            Text(L10n.text(
+                "STRA 独立维护 · 低功耗高刷实验",
+                "STRA independent edition · maintained by SOLHK"
+            ))
+                .fontWeight(.semibold)
+                .foregroundColor(STRAStyle.accent)
+
+            Text(L10n.editionSubtitle)
+
+            Text(L10n.text(
+                "此版本不是原作者的官方发行版",
+                "Not an official release by the upstream authors"
+            ))
+
+            HStack(spacing: 4) {
+                Text(L10n.text("开源致谢：", "Based on: "))
                 Link("CaiWanFeng", destination: URL(string: "https://github.com/CaiWanFeng/PiP")!)
-                    .foregroundColor(Color(UIColor.systemBlue))
-                Text(L10n.text("，完善：", ", maintained by "))
-                Link("Yoroin", destination: URL(string: "http://www.coolapk.com/u/3233328")!)
-                    .foregroundColor(Color(UIColor.systemBlue))
+                    .foregroundColor(STRAStyle.accent)
+                Text("·")
+                Link("Yoroin", destination: URL(string: "https://github.com/Yoroin/GlobalRefresh-PiP")!)
+                    .foregroundColor(STRAStyle.accent)
             }
         }
-        .font(.system(size: isCompact ? 14 : 16, weight: .medium))
+        .font(.system(size: isCompact ? 13 : 15, weight: .medium))
         .foregroundColor(Color(UIColor.secondaryLabel))
         .multilineTextAlignment(.center)
         .lineSpacing(isCompact ? 2 : 4)
@@ -2953,9 +2962,9 @@ private struct PrimaryPiPButton: View {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(Color(UIColor.systemBlue).opacity(0.18))
+                        .fill(STRAStyle.accent.opacity(0.18))
 
-                    Image(systemName: "pip.enter")
+                    Image(systemName: "bolt.horizontal.circle.fill")
                         .font(.system(size: layout.isCompact ? 19 : 21, weight: .black))
                 }
                 .frame(width: layout.isCompact ? 40 : 44, height: layout.isCompact ? 40 : 44)
@@ -3647,14 +3656,14 @@ private struct PrimaryLiquidGlassButtonStyle: ButtonStyle {
             .background(primaryBackground(isPressed: configuration.isPressed, shape: shape))
             .overlay(
                 shape.strokeBorder(
-                    Color(UIColor.systemBlue).opacity(configuration.isPressed ? 0.46 : 0.3),
+                    STRAStyle.accent.opacity(configuration.isPressed ? 0.46 : 0.3),
                     lineWidth: 1.4
                 )
             )
             .clipShape(shape)
             .scaleEffect(configuration.isPressed ? 0.965 : 1)
             .shadow(
-                color: Color(UIColor.systemBlue).opacity(configuration.isPressed ? 0.12 : 0.24),
+                color: STRAStyle.accent.opacity(configuration.isPressed ? 0.12 : 0.24),
                 radius: configuration.isPressed ? 10 : 20,
                 x: 0,
                 y: configuration.isPressed ? 5 : 12
@@ -3669,7 +3678,7 @@ private struct PrimaryLiquidGlassButtonStyle: ButtonStyle {
         if #available(iOS 26.0, *) {
             return AnyView(
                 shape
-                    .fill(Color(UIColor.systemBlue).opacity(isPressed ? 0.2 : 0.12))
+                    .fill(STRAStyle.accent.opacity(isPressed ? 0.2 : 0.12))
                     .glassEffect(.regular.interactive(), in: shape)
             )
         }
@@ -3677,7 +3686,7 @@ private struct PrimaryLiquidGlassButtonStyle: ButtonStyle {
             shape
                 .fill(.ultraThinMaterial)
                 .overlay(
-                    shape.fill(Color(UIColor.systemBlue).opacity(isPressed ? 0.24 : 0.14))
+                    shape.fill(STRAStyle.accent.opacity(isPressed ? 0.24 : 0.14))
                 )
         )
     }
@@ -3691,14 +3700,14 @@ private struct SecondaryPrimaryGlassButtonStyle: ButtonStyle {
             .background(background(isPressed: configuration.isPressed, shape: shape))
             .overlay(
                 shape.strokeBorder(
-                    Color(UIColor.systemBlue).opacity(configuration.isPressed ? 0.38 : 0.24),
+                    STRAStyle.accent.opacity(configuration.isPressed ? 0.38 : 0.24),
                     lineWidth: 1.1
                 )
             )
             .clipShape(shape)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .shadow(
-                color: Color(UIColor.systemBlue).opacity(configuration.isPressed ? 0.08 : 0.16),
+                color: STRAStyle.accent.opacity(configuration.isPressed ? 0.08 : 0.16),
                 radius: configuration.isPressed ? 7 : 12,
                 x: 0,
                 y: configuration.isPressed ? 3 : 7
@@ -3710,7 +3719,7 @@ private struct SecondaryPrimaryGlassButtonStyle: ButtonStyle {
         if #available(iOS 26.0, *) {
             return AnyView(
                 shape
-                    .fill(Color(UIColor.systemBlue).opacity(isPressed ? 0.16 : 0.08))
+                    .fill(STRAStyle.accent.opacity(isPressed ? 0.16 : 0.08))
                     .glassEffect(.regular.interactive(), in: shape)
             )
         }
@@ -3719,7 +3728,7 @@ private struct SecondaryPrimaryGlassButtonStyle: ButtonStyle {
             shape
                 .fill(.ultraThinMaterial)
                 .overlay(
-                    shape.fill(Color(UIColor.systemBlue).opacity(isPressed ? 0.18 : 0.1))
+                    shape.fill(STRAStyle.accent.opacity(isPressed ? 0.18 : 0.1))
                 )
         )
     }
