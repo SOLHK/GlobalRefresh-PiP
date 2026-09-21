@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate SOLHK-owned app icon assets before Xcode asset compilation.
+"""Generate STRA-owned app icon assets before Xcode asset compilation.
 
 Only standard-library modules are used. Re-running this script produces the same
 icons for Release and simulator builds; it does not modify the upstream NOTICE.
@@ -22,6 +22,9 @@ GLYPHS = {
     "L": ["10000", "10000", "10000", "10000", "10000", "10000", "11111"],
     "H": ["10001", "10001", "10001", "11111", "10001", "10001", "10001"],
     "K": ["10001", "10010", "10100", "11000", "10100", "10010", "10001"],
+    "T": ["11111", "00100", "00100", "00100", "00100", "00100", "00100"],
+    "R": ["11110", "10001", "10001", "11110", "10100", "10010", "10001"],
+    "A": ["01110", "10001", "10001", "11111", "10001", "10001", "10001"],
 }
 
 def png_bytes(width: int, height: int, pixels: bytearray) -> bytes:
@@ -63,7 +66,7 @@ def make_icon(size: int, tinted: bool = False, dark: bool = False) -> bytearray:
                 data[idx + 1] = min(255, int(base[1] + 13 * fy + 30 * glow + 7 * violet))
                 data[idx + 2] = min(255, int(base[2] + 14 * fx + 44 * glow + 38 * violet))
                 data[idx + 3] = 255
-            # A circular speedometer-like halo is part of the SOLHK identity.
+            # A circular speedometer-like halo is part of the STRA identity.
             radial = math.hypot(fx - 0.50, fy - 0.50)
             edge = abs(radial - 0.385)
             if edge < 0.012:
@@ -93,8 +96,8 @@ def make_icon(size: int, tinted: bool = False, dark: bool = False) -> bytearray:
     scale = min(scale, max(1, size // 22))
     text("120", 0.50, 0.33, scale, (241, 252, 255) if not tinted else (255, 255, 255))
     if size >= 96:
-        label_scale = max(1, round(size / 110))
-        text("SOLHK", 0.50, 0.71, label_scale, (75, 221, 251) if not tinted else (255, 255, 255))
+        label_scale = max(1, round(size / 112))
+        text("STRA", 0.50, 0.71, label_scale, (75, 221, 251) if not tinted else (255, 255, 255))
     return data
 
 def main() -> None:
@@ -112,7 +115,7 @@ def main() -> None:
         image = make_icon(pixels, tinted=tinted, dark=dark)
         (ASSETS / filename).write_bytes(png_bytes(pixels, pixels, image))
         count += 1
-    print(f"Generated {count} SOLHK app icons from Contents.json")
+    print(f"Generated {count} STRA app icons from Contents.json")
 
 if __name__ == "__main__":
     main()
