@@ -417,12 +417,14 @@ final class MainTabBarController: UITabBarController, UITabBarControllerDelegate
     }
 
     @objc private func handleAppDidBecomeActive() {
+        FrameStutterMonitor.resumeForForeground()
         startRefreshDriver()
         schedulePendingShortcutActionChecks(reason: "App激活")
         presentShortcutDisabledAlertIfNeeded()
     }
 
     @objc private func handleAppDidEnterBackground() {
+        FrameStutterMonitor.pauseForBackground()
         startRefreshDriver(reason: "entered background")
     }
 
@@ -550,6 +552,8 @@ final class MainTabBarController: UITabBarController, UITabBarControllerDelegate
     }
 
     @objc private func stepRefreshDriver(_ displayLink: CADisplayLink) {
+        // Preserve the strict frame-rate request without sampling in normal use.
+        guard AppDebugLogger.isDebugModeEnabled else { return }
         // Measures this app's CADisplayLink callbacks, never another app's FPS.
         let timestamp = displayLink.timestamp
         if refreshDriverSampleStartedAt == 0 {

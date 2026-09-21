@@ -19,7 +19,7 @@
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.1.1-beta7</string>
+	<string>1.1.1-beta8</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -34,7 +34,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>2026092107</string>
+	<string>2026092108</string>
 	<key>EnableDebugLogUI</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>

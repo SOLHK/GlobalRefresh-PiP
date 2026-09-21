@@ -79,6 +79,15 @@ enum PowerUsageLogger {
 
     static func exportText() -> String {
         UIDevice.current.isBatteryMonitoringEnabled = true
+        // PiP may have been activated before debug mode or statistics reset.
+        // Reconcile the real session before exporting instead of reporting zero.
+        let activePiP = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .compactMap { $0.rootViewController as? MainTabBarController }
+            .compactMap { $0.viewControllers?.first as? ViewController }
+            .contains { $0.hasActivePiPForDiagnostics }
+        if activePiP { markPiPStart() } else { markPiPStop() }
         if !shouldTrackState {
             resetStatistics()
         }

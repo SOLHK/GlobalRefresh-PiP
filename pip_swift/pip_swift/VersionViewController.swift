@@ -683,11 +683,11 @@ struct AppChangelogSection {
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
         AppChangelogSection(
-            version: L10n.text("1.1.1-beta7 STRA高刷独立版（26.9.21）", "1.1.1-beta7 STRA Refresh (2026.9.21)"),
+            version: L10n.text("1.1.1-beta8 STRA高刷低功耗与简约图标（26.9.21）", "1.1.1-beta8 STRA Refresh Low Power and Icon (2026.9.21)"),
             items: [
-                L10n.text("正式命名 STRA高刷，统一桌面、首页、启动页、日志、快捷指令与图标", "Rename the app to STRA Refresh across the home screen, Home, launch, diagnostics, Shortcuts and icon."),
-                L10n.text("修复开启调试前画中画已运行时，耗电辅助统计仍显示悬浮窗运行0秒", "Correct PiP usage statistics when diagnostics are enabled during an active PiP session."),
-                L10n.text("保留 beta5 真机验证过的解锁高刷恢复和低功耗保护逻辑", "Retain beta5's device-validated unlock recovery and low-power protection.")
+                L10n.text("更换简约银白S图标；锁屏与后台停止无意义的调试帧监控", "Use a minimalist silver S icon; pause unnecessary background and lock-screen stutter diagnostics."),
+                L10n.text("复制耗电日志时按真实画中画状态修复运行时长统计", "Reconcile real PiP state before exporting power-use statistics."),
+                L10n.text("非调试状态高刷驱动不逐帧采样，保留原有锁屏停止和解锁自动恢复", "Skip per-frame driver sampling outside debug mode; preserve lock power saving and automatic unlock recovery.")
             ]
         )
     }
