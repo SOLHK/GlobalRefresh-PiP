@@ -31,7 +31,6 @@ struct AppUpdateInfo {
     let notes: String
     let releaseURL: URL
     let releaseNotes: [String]
-    let cloudDriveURL: URL
     let githubReleasesURL: URL
 
     var latestVersion: String { version }
@@ -52,14 +51,14 @@ enum AppUpdateChecker {
         }
     }
 
-    private static let updateRepository = "Yoroin/GlobalRefresh-PiP"
+    // This independently maintained edition must never offer the upstream author's builds as its own updates.
+    private static let updateRepository = "SOLHK/GlobalRefresh-PiP"
     private static let latestReleaseAPI = URL(
         string: "https://api.github.com/repos/\(updateRepository)/releases/latest"
     )!
     private static let allReleasesAPI = URL(
         string: "https://api.github.com/repos/\(updateRepository)/releases?per_page=30"
     )!
-    private static let cloudDriveURL = URL(string: "https://1811629626.share.123pan.cn/123pan/KDFRVv-UEPfh")!
     private static let githubReleasesURL = URL(string: "https://github.com/\(updateRepository)/releases")!
     private static let updateSession: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
@@ -127,7 +126,6 @@ enum AppUpdateChecker {
                             notes: release.body ?? "",
                             releaseURL: release.htmlURL,
                             releaseNotes: releaseNotes(from: release.body ?? ""),
-                            cloudDriveURL: cloudDriveURL,
                             githubReleasesURL: githubReleasesURL
                         )
                         : nil
@@ -671,6 +669,18 @@ struct AppChangelogSection {
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
         AppChangelogSection(
+            version: L10n.text("1.1.1-beta6 SOLHK 独立版界面（26.9.21）", "1.1.1-beta6 SOLHK Independent Edition (2026.9.21)"),
+            items: [
+                L10n.text("启用 SOLHK 独立版名称、深浅色双主题渐变与全新高刷控制台布局", "Introduce SOLHK edition branding, adaptive gradient theme and refreshed control dashboard."),
+                L10n.text("更新首页、启动页、关于页与应用图标，移除旧版测试水印", "Redesign Home, launch and About pages and app icon; remove tiled beta watermark."),
+                L10n.text("更新检测仅指向 SOLHK 仓库，删除原作者云盘下载入口", "Check updates only in SOLHK's repository; remove upstream cloud-drive link."),
+                L10n.text("在关于页保留 CaiWanFeng 和 Yoroin 上游开源致谢；不改变 beta5 驱动及锁屏逻辑", "Keep upstream OSS credits in About; leave beta5 refresh/lock logic unchanged.")
+            ]
+        )
+    }
+
+    static var version111beta5: AppChangelogSection {
+        AppChangelogSection(
             version: L10n.text("1.1.1-beta5 解锁高刷恢复测试版（26.9.21）", "1.1.1-beta5 Unlock Refresh Recovery (2026.9.21)"),
             items: [
                 L10n.text("锁屏停止高刷驱动，解锁时在后台直接检查并尝试恢复；无需手动重新打开App", "Stop the extra refresh driver on lock; attempt its recovery on unlock in the background without reopening the app."),
@@ -888,6 +898,7 @@ final class ChangelogViewController: UIViewController {
 
         let stackView = UIStackView(arrangedSubviews: [
             makeSection(section: AppChangelogCatalog.latest),
+            makeSection(section: AppChangelogCatalog.version111beta5),
             makeSection(section: AppChangelogCatalog.version111beta4),
             makeSection(section: AppChangelogCatalog.version110fix),
             makeSection(section: AppChangelogCatalog.version110),
@@ -1113,8 +1124,6 @@ private final class UpdateAvailableViewController: UIViewController {
         scrollView.addSubview(items)
         card.addSubview(scrollView)
 
-        let cloudButton = makeLinkButton(title: L10n.text("123云盘", "123 Cloud"))
-        cloudButton.addTarget(self, action: #selector(openCloudDrive), for: .touchUpInside)
         let githubButton = makeLinkButton(title: "GitHub")
         githubButton.addTarget(self, action: #selector(openGitHub), for: .touchUpInside)
         let skipButton = makeLinkButton(title: L10n.text("跳过本次更新", "Skip This Update"))
@@ -1122,10 +1131,7 @@ private final class UpdateAvailableViewController: UIViewController {
         let laterButton = makeLinkButton(title: L10n.text("稍后", "Later"), primary: true)
         laterButton.addTarget(self, action: #selector(dismissTapped), for: .touchUpInside)
 
-        let links = UIStackView(arrangedSubviews: [cloudButton, githubButton])
-        links.axis = .vertical
-        links.spacing = 8
-        let buttons = UIStackView(arrangedSubviews: [links, skipButton, laterButton])
+        let buttons = UIStackView(arrangedSubviews: [githubButton, skipButton, laterButton])
         buttons.axis = .vertical
         buttons.spacing = 6
         card.addSubview(buttons)
@@ -1160,7 +1166,6 @@ private final class UpdateAvailableViewController: UIViewController {
             buttons.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 22),
             buttons.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -22),
             buttons.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -16),
-            cloudButton.heightAnchor.constraint(equalToConstant: 42),
             githubButton.heightAnchor.constraint(equalToConstant: 42),
             skipButton.heightAnchor.constraint(equalToConstant: 42),
             laterButton.heightAnchor.constraint(equalToConstant: 42)
@@ -1193,10 +1198,6 @@ private final class UpdateAvailableViewController: UIViewController {
         button.configuration = configuration
         button.titleLabel?.font = .systemFont(ofSize: 15, weight: .bold)
         return button
-    }
-
-    @objc private func openCloudDrive() {
-        UIApplication.shared.open(update.cloudDriveURL)
     }
 
     @objc private func openGitHub() {
