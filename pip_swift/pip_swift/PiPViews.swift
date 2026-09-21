@@ -249,23 +249,29 @@ struct PiPHomeView: View {
                         }
                         .padding(.horizontal, 3)
                         PrimaryPiPButton(
-                            title: isPiPActive ? L10n.text("关闭悬浮窗", "Stop Floating Window") : L10n.text("开启悬浮窗", "Start Floating Window"),
+                            title: isPiPActive ? startAndHidePiPButtonTitle : L10n.text("开启悬浮窗", "Start Floating Window"),
+                            subtitle: isPiPActive
+                                ? L10n.text("吸附到侧边后，一键收起", "Dock to the edge, then minimize")
+                                : L10n.text("启动画中画 · 开启刷新", "Launch PiP · Enable refresh"),
                             isActive: isPiPActive
                         ) {
-                            runAfterDismissingSettings(onTogglePiP)
+                            runAfterDismissingSettings(isPiPActive ? onStartAndHidePiP : onTogglePiP)
                         }
-                        HStack(spacing: 12) {
-                            StartAndHidePiPButton(title: startAndHidePiPButtonTitle, isEnabled: isPiPActive) {
-                                runAfterDismissingSettings(onStartAndHidePiP)
-                            }
-                            HomeQuickTile(
-                                title: L10n.text("悬浮窗高度", "Window Height"),
-                                subtitle: pipHeight,
-                                systemImage: "arrow.up.and.down"
-                            ) {
-                                runAfterDismissingSettings(onCustomizeHeight)
-                            }
+                        HStack(spacing: 7) {
+                            Image(systemName: isPiPActive ? "hand.draw" : "sparkles")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(STRAStyle.accent)
+                            Text(isPiPActive
+                                 ? L10n.text("先拖到屏幕边缘吸附，再点主按钮隐藏", "Dock PiP to the edge before minimizing")
+                                 : L10n.text("启动后主按钮自动切换为一键隐藏", "The button switches to minimize after launch"))
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(Color(UIColor.secondaryLabel))
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Spacer(minLength: 0)
                         }
+                        .padding(.horizontal, 6)
+                        .accessibilityIdentifier("stra.primaryPiP.hint")
                     }
                     pipStatusRow
                 }
@@ -583,23 +589,36 @@ struct PiPHomeView: View {
                 Spacer(minLength: 0)
                 pipStatusInfoButton
             }
+            Rectangle()
+                .fill(Color(UIColor.separator).opacity(0.16))
+                .frame(height: 0.5)
             HStack(spacing: 7) {
                 Image(systemName: "circle.grid.2x2")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(STRAStyle.accent)
-                if !layout.isNarrow {
-                    Text(L10n.text("运行方案", "Engine"))
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(Color(UIColor.secondaryLabel))
-                }
-                Spacer(minLength: 0)
                 engineRouteInfoButton
                 notificationInfoButton
+                Spacer(minLength: 0)
+                if isPiPActive {
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        runAfterDismissingSettings(onTogglePiP)
+                    } label: {
+                        Label(L10n.text("关闭", "Stop"), systemImage: "stop.circle.fill")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundColor(Color(UIColor.systemRed))
+                            .padding(.horizontal, 12)
+                            .frame(height: 32)
+                            .background(STRAStyle.glassSurface(cornerRadius: 16, tint: Color(UIColor.systemRed)))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("stra.stopPiP")
+                }
             }
         }
-        .padding(16)
+        .padding(18)
         .frame(maxWidth: .infinity)
-        .background(STRAStyle.glassSurface(cornerRadius: 24))
+        .background(STRAStyle.glassSurface(cornerRadius: 25))
     }
 
     private var pipStatusTitleLabel: some View {
@@ -2974,6 +2993,7 @@ private struct VersionDescriptionView: View {
 
 private struct PrimaryPiPButton: View {
     let title: String
+    let subtitle: String
     let isActive: Bool
     let action: () -> Void
 
@@ -2982,130 +3002,54 @@ private struct PrimaryPiPButton: View {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             action()
         } label: {
-            HStack(spacing: 15) {
-                Image(systemName: isActive ? "stop.fill" : "bolt.fill")
-                    .font(.system(size: 22, weight: .black))
-                    .frame(width: 54, height: 54)
-                     .background(Circle().fill(STRAStyle.accent.opacity(0.14)))
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(title)
-                        .font(.system(size: layout.isNarrow ? 18 : 21, weight: .black, design: .rounded))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.76)
-                    Text(isActive
-                         ? L10n.text("点击结束当前会话", "End the current session")
-                         : L10n.text("点击开启画中画会话", "Launch the PiP session"))
-                        .font(.system(size: 11, weight: .medium))
-                         .foregroundColor(Color(UIColor.secondaryLabel))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.74)
+            VStack(alignment: .leading, spacing: 24) {
+                HStack {
+                    Image(systemName: isActive ? "arrow.down.right.and.arrow.up.left" : "bolt.fill")
+                        .font(.system(size: 25, weight: .semibold))
+                        .foregroundColor(STRAStyle.accent)
+                        .frame(width: 59, height: 59)
+                        .background(STRAStyle.glassSurface(cornerRadius: 20, tint: STRAStyle.accent))
+                    Spacer(minLength: 0)
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(STRAStyle.accent)
+                        .frame(width: 40, height: 40)
+                        .background(STRAStyle.glassSurface(cornerRadius: 20))
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                Image(systemName: "arrow.up.right")
-                    .font(.system(size: 15, weight: .bold))
-                     .foregroundColor(STRAStyle.accent)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title)
+                        .font(.system(size: layout.isNarrow ? 25 : 29, weight: .bold, design: .rounded))
+                        .foregroundColor(Color(UIColor.label))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                    Text(subtitle)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Color(UIColor.secondaryLabel))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            .foregroundColor(Color(UIColor.label))
-            .padding(.horizontal, 20)
-            .frame(maxWidth: .infinity)
-            .frame(height: layout.isCompact ? 105 : 124)
+            .padding(layout.isNarrow ? 21 : 25)
+            .frame(maxWidth: .infinity, minHeight: layout.isCompact ? 174 : 190, alignment: .leading)
             .background(STRAStyle.glassSurface(
-                cornerRadius: 28,
+                cornerRadius: 32,
                 tint: isActive ? STRAStyle.secondary : STRAStyle.accent
             ))
-            .overlay(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .fill(isActive ? STRAStyle.secondary : STRAStyle.accent)
-                    .frame(width: 4, height: 45)
-                    .padding(.leading, 6)
+            .overlay {
+                RoundedRectangle(cornerRadius: 32, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.48), STRAStyle.accent.opacity(0.12), .clear],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.9
+                    )
             }
-            .shadow(color: STRAStyle.accent.opacity(0.08), radius: 15, x: 0, y: 7)
+            .shadow(color: STRAStyle.accent.opacity(0.085), radius: 25, x: 0, y: 13)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("stra.primaryPiP")
-    }
-
-    private var layout: AdaptiveLayoutMetrics { .current }
-}
-
-private struct StartAndHidePiPButton: View {
-    let title: String
-    let isEnabled: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            action()
-        } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                Image(systemName: "eye.slash")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundColor(STRAStyle.accent)
-                Spacer(minLength: 0)
-                Text(title)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundColor(Color(UIColor.label))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.77)
-                Text(isEnabled
-                     ? L10n.text("缩至最低高度", "Minimize the window")
-                     : L10n.text("开启后可用", "Start PiP first"))
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(Color(UIColor.secondaryLabel))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(15)
-            .frame(height: layout.isCompact ? 102 : 112)
-            .background(STRAStyle.glassSurface(
-                cornerRadius: 23,
-                tint: STRAStyle.accent.opacity(isEnabled ? 1 : 0.24)
-            ))
-        }
-        .buttonStyle(.plain)
-        .disabled(!isEnabled)
-        .accessibilityIdentifier("stra.minimizePiP")
-        .accessibilityHint(L10n.text("先开启并吸附悬浮窗到屏幕侧边", "Start and dock PiP to the edge first"))
-    }
-
-    private var layout: AdaptiveLayoutMetrics { .current }
-}
-
-private struct HomeQuickTile: View {
-    let title: String
-    let subtitle: String
-    let systemImage: String
-    let action: () -> Void
-
-    var body: some View {
-        Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            action()
-        } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 21, weight: .medium))
-                    .foregroundColor(STRAStyle.accent)
-                Spacer(minLength: 0)
-                Text(title)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundColor(Color(UIColor.label))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-                Text(subtitle)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(Color(UIColor.secondaryLabel))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(15)
-            .frame(height: layout.isCompact ? 102 : 112)
-            .background(STRAStyle.glassSurface(cornerRadius: 23))
-        }
-        .buttonStyle(.plain)
     }
 
     private var layout: AdaptiveLayoutMetrics { .current }
