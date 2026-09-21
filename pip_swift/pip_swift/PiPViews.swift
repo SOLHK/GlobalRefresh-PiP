@@ -599,14 +599,7 @@ struct PiPHomeView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.62))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(STRAStyle.accent.opacity(0.14), lineWidth: 1)
-        )
+        .background(STRAStyle.glassSurface(cornerRadius: 24))
     }
 
     private var pipStatusTitleLabel: some View {
@@ -2974,7 +2967,7 @@ private struct PrimaryPiPButton: View {
                 Image(systemName: isActive ? "stop.fill" : "bolt.fill")
                     .font(.system(size: 22, weight: .black))
                     .frame(width: 54, height: 54)
-                    .background(Circle().fill(Color.white.opacity(0.20)))
+                     .background(Circle().fill(STRAStyle.accent.opacity(0.14)))
                 VStack(alignment: .leading, spacing: 5) {
                     Text(title)
                         .font(.system(size: layout.isNarrow ? 18 : 21, weight: .black, design: .rounded))
@@ -2984,32 +2977,30 @@ private struct PrimaryPiPButton: View {
                          ? L10n.text("点击结束当前会话", "End the current session")
                          : L10n.text("点击开启画中画会话", "Launch the PiP session"))
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(Color.white.opacity(0.85))
+                         .foregroundColor(Color(UIColor.secondaryLabel))
                         .lineLimit(1)
                         .minimumScaleFactor(0.74)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "arrow.up.right")
                     .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(Color.white.opacity(0.9))
+                     .foregroundColor(STRAStyle.accent)
             }
-            .foregroundColor(.white)
+            .foregroundColor(Color(UIColor.label))
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity)
             .frame(height: layout.isCompact ? 105 : 124)
-            .background(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(LinearGradient(
-                        colors: isActive
-                            ? [Color(red: 0.17, green: 0.29, blue: 0.39), Color(red: 0.08, green: 0.16, blue: 0.23)]
-                            : [STRAStyle.accent, Color(red: 0.02, green: 0.39, blue: 0.67)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
-            )
-            .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.17), lineWidth: 1))
-            .shadow(color: STRAStyle.accent.opacity(isActive ? 0.08 : 0.20), radius: 18, x: 0, y: 10)
+            .background(STRAStyle.glassSurface(
+                cornerRadius: 28,
+                tint: isActive ? STRAStyle.secondary : STRAStyle.accent
+            ))
+            .overlay(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(isActive ? STRAStyle.secondary : STRAStyle.accent)
+                    .frame(width: 4, height: 45)
+                    .padding(.leading, 6)
+            }
+            .shadow(color: STRAStyle.accent.opacity(0.08), radius: 15, x: 0, y: 7)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("stra.primaryPiP")
@@ -3049,10 +3040,10 @@ private struct StartAndHidePiPButton: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(15)
             .frame(height: layout.isCompact ? 102 : 112)
-            .background(RoundedRectangle(cornerRadius: 23, style: .continuous)
-                .fill(STRAStyle.accent.opacity(isEnabled ? 0.13 : 0.055)))
-            .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous)
-                .strokeBorder(STRAStyle.accent.opacity(isEnabled ? 0.38 : 0.14), lineWidth: 1))
+            .background(STRAStyle.glassSurface(
+                cornerRadius: 23,
+                tint: STRAStyle.accent.opacity(isEnabled ? 1 : 0.24)
+            ))
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
@@ -3093,10 +3084,7 @@ private struct HomeQuickTile: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(15)
             .frame(height: layout.isCompact ? 102 : 112)
-            .background(RoundedRectangle(cornerRadius: 23, style: .continuous)
-                .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.72)))
-            .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous)
-                .strokeBorder(Color(UIColor.separator).opacity(0.18), lineWidth: 1))
+            .background(STRAStyle.glassSurface(cornerRadius: 23))
         }
         .buttonStyle(.plain)
     }
