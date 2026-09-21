@@ -640,6 +640,12 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         !shouldPauseForPower && (wantsPiPActive || isOwnPiPConfirmedActive || isPiPTransitioning)
     }
 
+    // Used only to seed diagnostics when users turn on debug mode mid-session.
+    // Unlike a pending-start flag, this checks the actual AVPictureInPictureController.
+    var hasActivePiPForDiagnostics: Bool {
+        isOwnPiPConfirmedActive && (pipController?.isPictureInPictureActive ?? false)
+    }
+
     static let piPEngineRuntimeModeDidChangeNotification = Notification.Name("pip.engineRuntimeModeDidChange")
     private var currentPiPSize: CGSize {
         CGSize(width: currentPiPWidth, height: effectivePiPSurfaceHeight)
