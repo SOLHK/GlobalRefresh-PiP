@@ -4,7 +4,7 @@ final class SimulatorUITests: XCTestCase {
     func testLaunchNavigateAndBackgroundForeground() {
         let app = XCUIApplication()
         app.launchArguments = ["-globalRefresh.launchCelebration.seen.1.1.0.tutorial-v7", "YES",
-                               "-globalRefresh.latestChangelog.seen.1.1.1-beta9", "YES"]
+                               "-globalRefresh.latestChangelog.seen.2.0.0", "YES"]
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
         let tabs = app.tabBars.firstMatch
@@ -18,6 +18,13 @@ final class SimulatorUITests: XCTestCase {
             XCTAssertTrue(tab.isHittable)
             tab.tap()
             XCTAssertTrue(tab.isSelected)
+            if index == 2 {
+                XCTAssertTrue(app.staticTexts["2.0.0"].waitForExistence(timeout: 8), "About must show the STRA 2.0 release")
+            }
+            if index == 0 {
+                XCTAssertTrue(app.staticTexts["STRA刷新"].exists || app.staticTexts["STRA Refresh"].exists,
+                              "Home must show the localized STRA Refresh brand")
+            }
             let capture = XCTAttachment(screenshot: app.screenshot())
             capture.name = "tab-\(index)"
             capture.lifetime = .keepAlways
