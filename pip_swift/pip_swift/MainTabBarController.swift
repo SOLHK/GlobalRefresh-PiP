@@ -73,7 +73,6 @@ final class MainTabBarController: UITabBarController, UITabBarControllerDelegate
         if GlobalRefresh2LaunchCelebration.shouldPresent {
             presentLaunchCelebrationIfNeeded()
         }
-        }
     }
 
     private func presentLaunchCelebrationIfNeeded() {
