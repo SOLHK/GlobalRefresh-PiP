@@ -5,7 +5,9 @@ The visual identity and information hierarchy in this file are product requireme
 ## Brand and layout
 - Installed app name **STRA Refresh**, independent GitHub destination `SOLHK/GlobalRefresh-PiP`.
 - Distinctive control-room dashboard, not the original upstream vertical stack: light aqua/blue visual accent, restrained static gradients, generous spacing, rounded shapes and a consistent grid. Support light/dark mode and smaller iPhones.
-- Main **Start / Stop Floating Window** control is the first large full-width button; quick **Minimize**, **Window Height**, **Switch Style**, **Guide** actions live in a two-column grid beneath it. The compact session status card follows the controls.
+- Main **Start / Stop Floating Window** control is the first large full-width button; quick **Minimize** and **Window Height** actions live in a two-column grid beneath it. Do not restore the removed Switch Style or Guide tiles to Home. The compact session status card follows the controls.
+- Prefer Xcode 27 and native iOS 26/27 SwiftUI Liquid Glass (glassEffect), with a system ultrathin-material fallback for older iOS. Do not approximate glass with opaque white cards.
+- About Preferences must always offer a visible X close button and tap-outside dismissal; panels must not trap touches under a full-screen invisible GeometryReader.
 - Keep labels aligned within tiles, touch targets large, and allow vertical scrolling rather than using fixed offsets that break on compact displays. Avoid horizontal clipping and unnecessary animated backgrounds / timers.
 
 ## Interaction and popup policy

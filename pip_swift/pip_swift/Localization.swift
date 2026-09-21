@@ -96,7 +96,7 @@ enum L10n {
     }
 
     static var versionDisplay: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0.1"
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0.2"
     }
 
     static var isBetaBuild: Bool {

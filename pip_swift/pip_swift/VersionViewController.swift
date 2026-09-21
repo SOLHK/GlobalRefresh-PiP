@@ -683,6 +683,17 @@ struct AppChangelogSection {
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
         AppChangelogSection(
+            version: L10n.text("2.0.2 STRA Refresh · 原生液态玻璃与浮层修复（26.9.22）", "2.0.2 STRA Refresh · Liquid Glass & Dismiss Fix (2026.9.22)"),
+            items: [
+                L10n.text("关于页设置卡片加入关闭按钮及点外部收起，修复点击被全屏透明层吞掉", "About Preferences gains a close button and tap-outside dismissal, fixing the full-screen hit-testing trap."),
+                L10n.text("首页删除切换样式和使用指南，保留悬浮窗启停、最小化及高度", "Remove Style and Guide from Home. Keep Start/Stop, Minimize and Window Height."),
+                L10n.text("使用 Xcode 27 构建，iOS 26/27 采用 SwiftUI 原生液态玻璃，旧系统兼容超薄材质", "Build with Xcode 27 and native Liquid Glass on iOS 26/27, with ultrathin material fallback.")
+            ]
+        )
+    }
+
+    static var version201: AppChangelogSection {
+        AppChangelogSection(
             version: L10n.text("2.0.1 STRA Refresh · 控制台重新设计（26.9.22）", "2.0.1 STRA Refresh · New Control Room (2026.9.22)"),
             items: [
                 L10n.text("顶部启动/关闭主按钮，下方双列最小化/高度与样式/指南操作", "Move Start/Stop to the top, followed by two-column minimize, height, style and guide controls."),
@@ -957,6 +968,7 @@ final class ChangelogViewController: UIViewController {
 
         let stackView = UIStackView(arrangedSubviews: [
             makeSection(section: AppChangelogCatalog.latest),
+            makeSection(section: AppChangelogCatalog.version201),
             makeSection(section: AppChangelogCatalog.version200),
             makeSection(section: AppChangelogCatalog.version111beta9),
             makeSection(section: AppChangelogCatalog.version111beta8),

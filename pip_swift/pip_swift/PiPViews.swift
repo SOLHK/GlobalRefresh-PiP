@@ -1769,6 +1769,7 @@ struct VersionPageView: View {
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: layout.versionMainSpacing) {
+                VStack(spacing: layout.isCompact ? 14 : 19) {
                 STRAStyle.editionMark
 
                 Text(L10n.appName)
@@ -1887,9 +1888,11 @@ struct VersionPageView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
                 }
-
-                Divider()
-                    .padding(.horizontal, layout.versionDividerPadding)
+                }
+                .padding(.vertical, layout.isCompact ? 18 : 24)
+                .padding(.horizontal, 14)
+                .frame(maxWidth: .infinity)
+                .background(STRAStyle.glassSurface(cornerRadius: 29, tint: STRAStyle.accent))
 
                 VersionDescriptionView(isCompact: layout.isCompact, languageIdentity: languageIdentity)
                     .id("version-description-\(languageIdentity)")
@@ -1901,6 +1904,10 @@ struct VersionPageView: View {
                             )
                         }
                     )
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 10)
+                    .frame(maxWidth: .infinity)
+                    .background(STRAStyle.glassSurface(cornerRadius: 24))
 
                 versionActions
                     .padding(.top, 12)

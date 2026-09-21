@@ -11,7 +11,7 @@ permissions:
   contents: read
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v4
       - name: Generate SOLHK app icons
@@ -25,9 +25,9 @@ jobs:
           mkdir -p package/Payload
           cp -R build/Build/Products/Release-iphoneos/pip_swift.app package/Payload/
           cd package
-          zip -qry ../STRA-Refresh-2.0.1-unsigned.ipa Payload
+          zip -qry ../STRA-Refresh-2.0.2-unsigned.ipa Payload
       - uses: actions/upload-artifact@v4
         with:
-          name: STRA-Refresh-2.0.1-unsigned
-          path: STRA-Refresh-2.0.1-unsigned.ipa
+          name: STRA-Refresh-2.0.2-unsigned
+          path: STRA-Refresh-2.0.2-unsigned.ipa
 
