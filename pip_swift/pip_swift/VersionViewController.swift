@@ -98,8 +98,16 @@ enum AppUpdateChecker {
             if let error {
                 result = .failure(error)
             } else if let httpResponse = response as? HTTPURLResponse,
+                      httpResponse.statusCode == 404 {
+                // An independent edition can legitimately have no Releases yet.
+                result = .success(nil)
+            } else if let httpResponse = response as? HTTPURLResponse,
                       !(200..<300).contains(httpResponse.statusCode) {
                 result = .failure(UpdateCheckError.httpStatus(httpResponse.statusCode))
+            } else if let data, includePrereleases,
+                      let releases = try? JSONDecoder().decode([Release].self, from: data),
+                      releases.allSatisfy({ $0.isDraft }) {
+                result = .success(nil)
             } else if let data {
                 do {
                     let release: Release
