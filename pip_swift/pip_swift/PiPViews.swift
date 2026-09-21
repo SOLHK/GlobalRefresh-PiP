@@ -2894,7 +2894,7 @@ private struct VersionDescriptionView: View {
 
             Link(destination: STRAProject.projectURL) {
                 Label(L10n.text("SOLHK · GitHub项目", "SOLHK · GitHub Project"), systemImage: "arrow.up.right")
-                    .fontWeight(.bold)
+                    .font(.system(size: isCompact ? 13 : 15, weight: .bold))
             }
             .foregroundColor(STRAStyle.accent)
             .accessibilityHint(L10n.text("查看 STRA刷新 项目源码", "Open the STRA Refresh source repository"))
