@@ -20,6 +20,18 @@ final class SimulatorUITests: XCTestCase {
             XCTAssertTrue(tab.isSelected)
             if index == 2 {
                 XCTAssertTrue(app.staticTexts["2.0.2"].waitForExistence(timeout: 8), "About must show the STRA 2.0 release")
+                let openSettings = app.buttons["stra.about.openSettings"]
+                XCTAssertTrue(openSettings.waitForExistence(timeout: 8), "About preferences button must be visible")
+                openSettings.tap()
+                let closeSettings = app.buttons["stra.about.closeSettings"]
+                XCTAssertTrue(closeSettings.waitForExistence(timeout: 8), "Preferences needs a visible close button")
+                closeSettings.tap()
+                let disappeared = XCTNSPredicateExpectation(
+                    predicate: NSPredicate(format: "exists == false"),
+                    object: closeSettings
+                )
+                XCTAssertEqual(XCTWaiter.wait(for: [disappeared], timeout: 5), .completed,
+                               "About preferences should close without trapping touches")
             }
             if index == 0 {
                 XCTAssertTrue(app.staticTexts["Refresh Console"].exists || app.staticTexts["刷新控制台"].exists,
