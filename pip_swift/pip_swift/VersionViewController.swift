@@ -671,6 +671,18 @@ struct AppChangelogSection {
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
         AppChangelogSection(
+            version: L10n.text("1.1.1-beta5 解锁高刷恢复测试版（26.9.21）", "1.1.1-beta5 Unlock Refresh Recovery (2026.9.21)"),
+            items: [
+                L10n.text("锁屏停止高刷驱动，解锁时在后台直接检查并尝试恢复；无需手动重新打开App", "Stop the extra refresh driver on lock; attempt its recovery on unlock in the background without reopening the app."),
+                L10n.text("补充驱动启动、停止和解锁恢复状态日志，避免仅看画中画开启就误判高刷生效", "Log driver start, stop and unlock recovery separately from PiP status."),
+                L10n.text("调试模式每约10秒记录本App驱动回调频率；不是其他App的实际帧率", "Sample this app's display-link callback rate about every 10 seconds in debug mode; it is not other apps' FPS."),
+                L10n.text("保留beta4低功耗锁屏和温度保护；系统暂停后台执行时不能保证立即恢复", "Preserve beta4 lock-screen savings and thermal protection; iOS suspension may delay recovery.")
+            ]
+        )
+    }
+
+    static var version111beta4: AppChangelogSection {
+        AppChangelogSection(
             version: L10n.text("1.1.1-beta4 节能修复测试版（26.9.21）", "1.1.1-beta4 Power Fix Test (2026.9.21)"),
             items: [
                 L10n.text("修复锁屏保留会话时，首页更新重新启动每秒计时刷新的问题", "Prevent home updates from restarting the runtime UI timer while PiP is paused on lock."),
@@ -876,6 +888,7 @@ final class ChangelogViewController: UIViewController {
 
         let stackView = UIStackView(arrangedSubviews: [
             makeSection(section: AppChangelogCatalog.latest),
+            makeSection(section: AppChangelogCatalog.version111beta4),
             makeSection(section: AppChangelogCatalog.version110fix),
             makeSection(section: AppChangelogCatalog.version110),
             makeSection(
