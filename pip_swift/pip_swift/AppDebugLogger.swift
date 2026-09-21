@@ -148,7 +148,7 @@ enum AppDebugLogger {
             : ""
 
         return """
-        全局高刷调试日志
+        STRA高刷调试日志
         App版本：\(version) (\(build))
         Bundle ID：\(bundleID)
         系统版本：iOS \(device.systemVersion)
