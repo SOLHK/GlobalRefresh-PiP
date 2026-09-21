@@ -75,15 +75,60 @@ final class PowerLifecycleTests: XCTestCase {
         XCTAssertFalse(controller.simulatorSnapshot.wantsPiP)
     }
 
-    func testSevereHeatCancelsRecoveryAndCoolingDoesNotRestart() {
+    func testHeatRecoveryWaitsForCooldown() {
         controller.simulatorSeedStartingSession(height: 44)
+        controller.applyThermalState(.serious)
+        XCTAssertTrue(controller.simulatorThermalRecoveryPending)
+        XCTAssertFalse(controller.simulatorSnapshot.hasContentTimers)
+        controller.applyThermalState(.nominal)
+        XCTAssertEqual(controller.simulatorSnapshot.restartAttempts, 0)
+        controller.simulatorFinishCooling()
+        XCTAssertFalse(controller.simulatorThermalRecoveryPending)
+        XCTAssertEqual(controller.simulatorSnapshot.restartAttempts, 1)
+    }
+
+    func testIdleHeatDoesNotStartAnUnrequestedSession() {
+        controller.applyThermalState(.critical)
+        controller.applyThermalState(.nominal)
+        controller.simulatorFinishCooling()
+        XCTAssertFalse(controller.simulatorThermalRecoveryPending)
+        XCTAssertEqual(controller.simulatorSnapshot.restartAttempts, 0)
+    }
+
+    func testManualStopCancelsThermalRecovery() {
+        controller.simulatorSeedStartingSession(height: 44)
+        controller.applyThermalState(.serious)
+        controller.applyThermalState(.nominal)
+        controller.simulatorUserStop()
+        controller.simulatorFinishCooling()
+        XCTAssertFalse(controller.simulatorThermalRecoveryPending)
+        XCTAssertEqual(controller.simulatorSnapshot.restartAttempts, 0)
+    }
+
+    func testCoolingWhileLockedWaitsForUnlock() {
+        controller.simulatorSeedStartingSession(height: 0.1)
         lock()
         controller.applyThermalState(.serious)
-        unlock()
         controller.applyThermalState(.nominal)
-        XCTAssertFalse(controller.simulatorSnapshot.resumePending)
+        controller.simulatorFinishCooling()
+        XCTAssertTrue(controller.simulatorSnapshot.resumePending)
+        XCTAssertEqual(controller.simulatorSnapshot.savedHeight, 0.1)
         XCTAssertEqual(controller.simulatorSnapshot.restartAttempts, 0)
-        XCTAssertFalse(controller.simulatorSnapshot.wantsPiP)
+        unlock()
+        XCTAssertEqual(controller.simulatorSnapshot.restartAttempts, 1)
+    }
+
+    func testWarmingAgainCancelsCooldownDeadline() {
+        controller.simulatorSeedStartingSession(height: 44)
+        controller.applyThermalState(.serious)
+        controller.applyThermalState(.nominal)
+        controller.applyThermalState(.fair)
+        controller.simulatorFinishCooling()
+        XCTAssertTrue(controller.simulatorThermalRecoveryPending)
+        XCTAssertEqual(controller.simulatorSnapshot.restartAttempts, 0)
+        controller.applyThermalState(.nominal)
+        controller.simulatorFinishCooling()
+        XCTAssertEqual(controller.simulatorSnapshot.restartAttempts, 1)
     }
 
     func testMainRefreshDriverIsRemovedOnLockNotification() {
@@ -186,3 +231,4 @@ final class PowerLifecycleTests: XCTestCase {
         XCTAssertTrue(controller.simulatorSnapshot.actualPiPActive, "PiP claims support but did not start in the simulator; inspect runtime logs.")
     }
 }
+

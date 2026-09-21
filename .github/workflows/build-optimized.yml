@@ -2,7 +2,7 @@ name: Build unsigned optimized IPA
 on:
   workflow_dispatch:
   push:
-    branches: [master, codex/power-saving-beta2]
+    branches: [master, codex/power-saving-beta2, codex/stra-beta9]
     paths:
       - 'pip_swift/**'
       - 'ci/**'
@@ -25,8 +25,9 @@ jobs:
           mkdir -p package/Payload
           cp -R build/Build/Products/Release-iphoneos/pip_swift.app package/Payload/
           cd package
-          zip -qry ../GlobalRefresh-optimized-unsigned.ipa Payload
+          zip -qry ../STRA-high-refresh-1.1.1-beta9-unsigned.ipa Payload
       - uses: actions/upload-artifact@v4
         with:
-          name: GlobalRefresh-optimized-unsigned
-          path: GlobalRefresh-optimized-unsigned.ipa
+          name: STRA-high-refresh-1.1.1-beta9-unsigned
+          path: STRA-high-refresh-1.1.1-beta9-unsigned.ipa
+
