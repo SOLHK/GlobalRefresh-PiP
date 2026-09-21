@@ -157,6 +157,7 @@ struct PageHeaderTitle: View {
 }
 
 struct PiPHomeView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var isPiPActive: Bool
     @Binding var isPiPStatusInfoVisible: Bool
     @State private var isSettingsVisible = false
@@ -248,6 +249,7 @@ struct PiPHomeView: View {
                             Circle()
                                 .fill(isPiPActive ? STRAStyle.accent : Color(UIColor.tertiaryLabel))
                                 .frame(width: 7, height: 7)
+                                .scaleEffect(isPiPActive && !reduceMotion ? 1.18 : 1)
                             Text(isPiPActive ? L10n.text("已连接", "LIVE") : L10n.text("待机", "STANDBY"))
                                 .font(.system(size: 10, weight: .bold, design: .monospaced))
                                 .foregroundColor(Color(UIColor.secondaryLabel))
@@ -285,6 +287,7 @@ struct PiPHomeView: View {
                 .padding(.bottom, layout.isCompact ? 18 : 32)
                 .frame(maxWidth: 500)
                 .frame(maxWidth: .infinity)
+                .animation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.84), value: isPiPActive)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -616,8 +619,9 @@ struct PiPHomeView: View {
                             .frame(height: 32)
                             .background(STRAStyle.glassSurface(cornerRadius: 16, tint: Color(UIColor.systemRed)))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(STRAPressFeedbackStyle())
                     .accessibilityIdentifier("stra.stopPiP")
+                    .transition(.opacity.combined(with: .scale(scale: 0.88)))
                 }
             }
         }
@@ -2997,6 +3001,7 @@ private struct VersionDescriptionView: View {
 }
 
 private struct PrimaryPiPButton: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let title: String
     let subtitle: String
     let isActive: Bool
@@ -3009,7 +3014,15 @@ private struct PrimaryPiPButton: View {
         } label: {
             VStack(alignment: .leading, spacing: 24) {
                 HStack {
-                    Image(systemName: isActive ? "arrow.down.right.and.arrow.up.left" : "bolt.fill")
+                    ZStack {
+                        if isActive {
+                            Image(systemName: "arrow.down.right.and.arrow.up.left")
+                                .transition(.opacity.combined(with: .scale(scale: 0.75)))
+                        } else {
+                            Image(systemName: "bolt.fill")
+                                .transition(.opacity.combined(with: .scale(scale: 0.75)))
+                        }
+                    }
                         .font(.system(size: 25, weight: .semibold))
                         .foregroundColor(STRAStyle.accent)
                         .frame(width: 59, height: 59)
@@ -3023,6 +3036,8 @@ private struct PrimaryPiPButton: View {
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     Text(title)
+                        .id(title)
+                        .transition(.opacity.combined(with: .offset(y: reduceMotion ? 0 : 5)))
                         .font(.system(size: layout.isNarrow ? 25 : 29, weight: .bold, design: .rounded))
                         .foregroundColor(Color(UIColor.label))
                         .lineLimit(1)
@@ -3053,11 +3068,28 @@ private struct PrimaryPiPButton: View {
             }
             .shadow(color: STRAStyle.accent.opacity(0.085), radius: 25, x: 0, y: 13)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(STRAPressFeedbackStyle())
+        .animation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.80), value: isActive)
         .accessibilityIdentifier("stra.primaryPiP")
+        .accessibilityHint(isActive
+            ? L10n.text("先把悬浮窗拖到侧边吸附，再点此按钮将其最小化", "Dock PiP to the edge, then tap to minimize.")
+            : L10n.text("启动悬浮窗，然后此按钮自动切换为最小化", "Start PiP; this button becomes Minimize."))
     }
 
     private var layout: AdaptiveLayoutMetrics { .current }
+}
+
+// Tap response only: no looping animations or background display-link work.
+private struct STRAPressFeedbackStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? 0.978 : 1))
+            .opacity(configuration.isPressed ? 0.92 : 1)
+            .animation(reduceMotion ? nil : .spring(response: 0.23, dampingFraction: 0.75),
+                       value: configuration.isPressed)
+    }
 }
 
 private struct ActionButton: View {
