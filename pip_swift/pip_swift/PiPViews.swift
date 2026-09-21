@@ -68,6 +68,28 @@ private enum STRAStyle {
     static let accent = Color(red: 0.02, green: 0.70, blue: 0.75)
     static let secondary = Color(red: 0.27, green: 0.46, blue: 0.93)
 
+    // System Liquid Glass on iOS 26/27, system material on older iOS.
+    // No timer, bitmap blur or custom glass simulation.
+    static func glassSurface(cornerRadius: CGFloat = 24, tint: Color = .clear) -> AnyView {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        if #available(iOS 26.0, *) {
+            return AnyView(
+                shape
+                    .fill(tint.opacity(0.09))
+                    .glassEffect(.regular, in: shape)
+                    .overlay(shape.strokeBorder(
+                        Color.white.opacity(0.26), lineWidth: 0.8
+                    ))
+            )
+        }
+        return AnyView(
+            shape
+                .fill(.ultraThinMaterial)
+                .overlay(shape.fill(tint.opacity(0.09)))
+                .overlay(shape.strokeBorder(Color(UIColor.separator).opacity(0.22), lineWidth: 0.8))
+        )
+    }
+
     static var canvas: some View {
         ZStack {
             Color(UIColor.systemGroupedBackground)
@@ -244,22 +266,6 @@ struct PiPHomeView: View {
                                 runAfterDismissingSettings(onCustomizeHeight)
                             }
                         }
-                        HStack(spacing: 12) {
-                            HomeQuickTile(
-                                title: L10n.text("切换样式", "Switch Style"),
-                                subtitle: L10n.text("标准 / 紧凑", "Standard / Compact"),
-                                systemImage: "square.on.square"
-                            ) {
-                                runAfterDismissingSettings(onToggleStyle)
-                            }
-                            HomeQuickTile(
-                                title: L10n.text("使用指南", "Guide"),
-                                subtitle: L10n.text("使用与技巧", "Tips & Setup"),
-                                systemImage: "book.closed"
-                            ) {
-                                runAfterDismissingSettings(onShowTutorial)
-                            }
-                        }
                     }
                     pipStatusRow
                 }
@@ -268,15 +274,6 @@ struct PiPHomeView: View {
                 .padding(.bottom, layout.isCompact ? 18 : 32)
                 .frame(maxWidth: 500)
                 .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    dismissKeepAliveInfoIfNeeded()
-                    dismissPiPStatusInfoIfNeededRespectingPersistence()
-                    dismissNotificationFrequencyInfoIfNeeded()
-                    dismissPiPStoppedNotificationInfoIfNeeded()
-                    dismissEngineRouteInfoIfNeeded()
-                    dismissSettingsIfNeeded()
-                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -322,6 +319,15 @@ struct PiPHomeView: View {
                     .padding(.horizontal, layout.headerHorizontalPadding)
                     .transition(.opacity)
                     .zIndex(9)
+            }
+
+            if isSettingsVisible {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .padding(.top, layout.homeSettingsTop)
+                    .onTapGesture { dismissSettingsIfNeeded() }
+                    .zIndex(8)
+                    .accessibilityIdentifier("stra.home.settingsBackdrop")
             }
 
             settingsPopover
@@ -900,9 +906,25 @@ struct PiPHomeView: View {
 
     private var settingsPopover: some View {
         VStack(alignment: .leading, spacing: 7) {
-            Text(L10n.text("高级设置", "Advanced Settings"))
-                .font(.system(size: 18, weight: .black, design: .rounded))
-                .foregroundColor(Color(UIColor.label))
+            HStack {
+                Text(L10n.text("高级设置", "Advanced Settings"))
+                    .font(.system(size: 18, weight: .black, design: .rounded))
+                    .foregroundColor(Color(UIColor.label))
+                Spacer(minLength: 0)
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    dismissSettingsIfNeeded()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Color(UIColor.label))
+                        .frame(width: 34, height: 34)
+                        .background(STRAStyle.glassSurface(cornerRadius: 17))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.text("关闭设置", "Close Settings"))
+                .accessibilityIdentifier("stra.home.closeSettings")
+            }
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 7) {
@@ -1066,28 +1088,12 @@ struct PiPHomeView: View {
         .padding(14)
         .frame(width: layout.homeSettingsPanelWidth)
         .background(settingsPopoverBackground)
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(adaptiveGlassStrokeColor, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .shadow(color: Color.black.opacity(0.16), radius: 18, x: 0, y: 10)
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .shadow(color: Color.black.opacity(0.12), radius: 20, x: 0, y: 10)
     }
 
     private var settingsPopoverBackground: AnyView {
-        let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
-        if #available(iOS 26.0, *) {
-            return AnyView(
-                shape
-                    .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.08))
-                    .glassEffect(.regular.interactive(), in: shape)
-            )
-        }
-        return AnyView(
-            shape
-                .fill(.ultraThinMaterial)
-                .overlay(shape.fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.28)))
-        )
+        STRAStyle.glassSurface(cornerRadius: 26, tint: STRAStyle.accent)
     }
 
     private var rememberHeightBinding: Binding<Bool> {
