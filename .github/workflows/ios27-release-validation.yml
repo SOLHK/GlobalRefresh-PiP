@@ -16,7 +16,7 @@ jobs:
         run: |
           gem install --user-install xcodeproj --no-document
           ruby ci/configure-simulator-tests.rb
-      - name: Verify and boot iOS 27.0 release (24A437)
+      - name: Verify and boot iOS 27.0 release simulator (24A434)
         run: python3 ci/select-ios27-release.py
       - name: Run app-hosted lifecycle tests and UI tests
         run: |
