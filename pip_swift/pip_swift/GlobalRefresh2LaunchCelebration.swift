@@ -135,14 +135,14 @@ struct GlobalRefresh2LaunchCelebrationView: View {
             scheduledFinish?.cancel()
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(L10n.text("SOLHK 高刷 \(L10n.versionDisplay)", "SOLHK Refresh \(L10n.versionDisplay)")))
+        .accessibilityLabel(Text(L10n.text("STRA高刷 \(L10n.versionDisplay)", "STRA Refresh \(L10n.versionDisplay)")))
         .accessibilityAddTraits(.isButton)
         .accessibilityHint(Text(L10n.text("轻触继续或跳过启动动画", "Tap to continue or skip the launch animation")))
     }
 
     private func celebrationPage(proxy: GeometryProxy) -> some View {
         VStack(spacing: 0) {
-            Text(L10n.text("SOLHK / REFRESH LAB", "SOLHK / REFRESH LAB"))
+            Text(L10n.text("STRA / REFRESH LAB", "STRA / REFRESH LAB"))
                 .font(.system(size: 12, weight: .black, design: .rounded))
                 .foregroundColor(Color(UIColor.secondaryLabel))
                 .tracking(0.8)
