@@ -320,6 +320,8 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
     private var clockRenderTimer: Timer?
     private var pipRuntimeTimer: Timer?
+    private var isHomeViewVisible = false
+    private var isAppInBackgroundForUI = UIApplication.shared.applicationState == .background
     private var lastScrollTimestamp: CFTimeInterval?
     private var lastFPSProbeTimestamp: CFTimeInterval?
     private var lastClockTimestamp: CFTimeInterval?
@@ -772,6 +774,8 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        isHomeViewVisible = true
+        updateHomeView()
         if !shouldResignForegroundAfterPiPClose {
             restoreForegroundWindowsHiddenForPiPCloseIfNeeded()
         }
@@ -794,6 +798,8 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        isHomeViewVisible = false
+        stopPiPRuntimeTimer()
         if isSettingsExpanded {
             isSettingsExpanded = false
         }
@@ -1537,18 +1543,30 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     private func syncPiPRuntimeTimerState() {
-        if pipRuntimeStartedAt != nil {
+        if shouldRefreshRuntimeUI {
             startPiPRuntimeTimerIfNeeded()
         } else {
             stopPiPRuntimeTimer()
         }
     }
 
+    private var shouldRefreshRuntimeUI: Bool {
+        pipRuntimeStartedAt != nil && isHomeViewVisible && !isAppInBackgroundForUI
+            && UIApplication.shared.applicationState == .active && !shouldPauseForPower
+    }
+
     private func startPiPRuntimeTimerIfNeeded() {
+        // updateHomeView also calls this path. Never resurrect a timer stopped
+        // by lock/background handling while an established PiP remains alive.
+        guard shouldRefreshRuntimeUI else {
+            stopPiPRuntimeTimer()
+            return
+        }
         guard pipRuntimeTimer == nil else { return }
         let timer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.tickPiPRuntimeTimer()
         }
+        timer.tolerance = 0.2
         RunLoop.main.add(timer, forMode: .common)
         pipRuntimeTimer = timer
     }
@@ -1559,7 +1577,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     private func tickPiPRuntimeTimer() {
-        guard let pipRuntimeStartedAt else {
+        guard shouldRefreshRuntimeUI, let pipRuntimeStartedAt else {
             stopPiPRuntimeTimer()
             return
         }
@@ -3454,8 +3472,14 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     @objc private func stepPlayerLayerActivityDriver() {
-        guard !shouldPauseForPower else {
-            suspendPiPForPower(reason: L10n.text("节能暂停，请重新开启", "Paused; restart PiP"))
+        // The watchdog may observe protected data becoming unavailable before
+        // the lock notification. Preserve the same unlock recovery intent.
+        if isDeviceLockedForPower || !UIApplication.shared.isProtectedDataAvailable {
+            pausePiPForLock()
+            return
+        }
+        if shouldPauseForPower {
+            applyThermalState(ProcessInfo.processInfo.thermalState)
             return
         }
         guard shouldUsePlayerLayerPiPCompatibility,
@@ -3468,7 +3492,9 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         }
 
         guard let player = playerLayer?.player else { return }
-        if player.timeControlStatus != .playing {
+        // Waiting already means AVPlayer is trying to play. Reissuing play()
+        // every second also reschedules audio-session work for no benefit.
+        if player.timeControlStatus == .paused {
             player.play()
             scheduleTransientPlayerLayerPiPAudioRelease(reason: "PlayerLayer原作者式活性驱动恢复播放")
         }
@@ -5357,6 +5383,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     @objc private func handleDidBecomeActive() {
+        isAppInBackgroundForUI = false
         isDeviceLockedForPower = !UIApplication.shared.isProtectedDataAvailable
         if shouldPauseForPower {
             suspendPiPForPower(reason: L10n.text("锁屏或过热，已暂停", "Paused: locked or too warm"))
@@ -5367,6 +5394,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
             resumePiPAfterUnlockIfPossible()
             deactivateLockScreenAudioBoostIfNeeded(reason: "App已活跃")
         }
+        updateHomeView()
         guard shouldResignForegroundAfterPiPClose else { return }
         DiagnosticsRuntimeState.updateAppState("PiP关闭后阻止激活")
         AppDebugLogger.log("Suppress foreground restore after PiP close: didBecomeActive")
@@ -5374,6 +5402,8 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     }
 
     @objc private func handleEnterBackground() {
+        isAppInBackgroundForUI = true
+        stopPiPRuntimeTimer()
         if isDeviceLockedForPower || !UIApplication.shared.isProtectedDataAvailable {
             pausePiPForLock()
             return
@@ -5748,6 +5778,18 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
 #if DEBUG && targetEnvironment(simulator)
 // Simulator-only access to real lifecycle paths. These hooks are absent from IPA builds.
 extension ViewController {
+    var simulatorRuntimeUIState: (hasTimer: Bool, duration: TimeInterval) {
+        (pipRuntimeTimer != nil, pipRuntimeDuration)
+    }
+    func simulatorSeedRuntime(startedAt: Date) {
+        pipRuntimeStartedAt = startedAt
+        updateHomeView()
+    }
+    func simulatorRefreshHome() { updateHomeView() }
+    func simulatorWatchdogDetectsLock() {
+        isDeviceLockedForPower = true
+        stepPlayerLayerActivityDriver()
+    }
     var simulatorSnapshot: (resumePending: Bool, wantsPiP: Bool, hasPendingStart: Bool,
                             hasContentTimers: Bool, audioPlaying: Bool, savedHeight: CGFloat?,
                             restartAttempts: Int, actualPiPActive: Bool) {

@@ -12,6 +12,7 @@ final class PowerLifecycleTests: XCTestCase {
     }
 
     override func tearDown() async throws {
+        controller.viewWillDisappear(false)
         controller.stopForFullDataReset()
         NotificationCenter.default.removeObserver(controller!)
         controller = nil
@@ -95,6 +96,61 @@ final class PowerLifecycleTests: XCTestCase {
         home.stopForFullDataReset()
         NotificationCenter.default.removeObserver(home)
         NotificationCenter.default.removeObserver(tabs)
+    }
+
+    func testBackgroundHomeUpdatesCannotRestartRuntimeUITimer() {
+        controller.viewDidAppear(false)
+        controller.simulatorSeedRuntime(startedAt: Date().addingTimeInterval(-90))
+        XCTAssertTrue(controller.simulatorRuntimeUIState.hasTimer)
+        NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
+        controller.simulatorRefreshHome()
+        XCTAssertFalse(controller.simulatorRuntimeUIState.hasTimer)
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        XCTAssertTrue(controller.simulatorRuntimeUIState.hasTimer)
+        XCTAssertGreaterThanOrEqual(controller.simulatorRuntimeUIState.duration, 90)
+    }
+
+    func testHiddenHomeStopsRuntimeTimerAndRestoresElapsedTime() {
+        controller.viewDidAppear(false)
+        controller.simulatorSeedRuntime(startedAt: Date().addingTimeInterval(-90))
+        XCTAssertTrue(controller.simulatorRuntimeUIState.hasTimer)
+        controller.viewWillDisappear(false)
+        controller.simulatorRefreshHome()
+        XCTAssertFalse(controller.simulatorRuntimeUIState.hasTimer)
+        controller.viewDidAppear(false)
+        XCTAssertTrue(controller.simulatorRuntimeUIState.hasTimer)
+        XCTAssertGreaterThanOrEqual(controller.simulatorRuntimeUIState.duration, 90)
+    }
+
+    func testRetainedRuntimeDoesNotRestartTimerWhileLocked() {
+        controller.viewDidAppear(false)
+        lock()
+        // Model the retained session timestamp of a paused, established PiP.
+        controller.simulatorSeedRuntime(startedAt: Date().addingTimeInterval(-90))
+        controller.simulatorRefreshHome()
+        XCTAssertFalse(controller.simulatorRuntimeUIState.hasTimer)
+        unlock()
+        XCTAssertTrue(controller.simulatorRuntimeUIState.hasTimer)
+    }
+
+    func testWatchdogDetectingLockPreservesAutomaticRecovery() {
+        controller.simulatorSeedStartingSession(height: 0.1)
+        controller.simulatorWatchdogDetectsLock()
+        XCTAssertTrue(controller.simulatorSnapshot.resumePending)
+        XCTAssertFalse(controller.simulatorSnapshot.hasPendingStart)
+        XCTAssertFalse(controller.simulatorSnapshot.hasContentTimers)
+        XCTAssertEqual(controller.simulatorSnapshot.savedHeight, 0.1)
+        unlock()
+        XCTAssertEqual(controller.simulatorSnapshot.restartAttempts, 1)
+    }
+
+    func testUserStopAfterWatchdogLockPreventsAutomaticRecovery() {
+        controller.simulatorSeedStartingSession(height: 0.1)
+        controller.simulatorWatchdogDetectsLock()
+        controller.simulatorUserStop()
+        unlock()
+        XCTAssertFalse(controller.simulatorSnapshot.resumePending)
+        XCTAssertEqual(controller.simulatorSnapshot.restartAttempts, 0)
     }
 
     func testActualPiPStartWhenSimulatorSupportsIt() async throws {

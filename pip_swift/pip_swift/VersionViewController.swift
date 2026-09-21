@@ -671,8 +671,11 @@ struct AppChangelogSection {
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
         AppChangelogSection(
-            version: L10n.text("1.1.1-beta3 自动恢复测试版（26.9.21）", "1.1.1-beta3 Auto-resume Test (2026.9.21)"),
+            version: L10n.text("1.1.1-beta4 节能修复测试版（26.9.21）", "1.1.1-beta4 Power Fix Test (2026.9.21)"),
             items: [
+                L10n.text("修复锁屏保留会话时，首页更新重新启动每秒计时刷新的问题", "Prevent home updates from restarting the runtime UI timer while PiP is paused on lock."),
+                L10n.text("后台及离开首页时停止运行时间刷新，返回首页后按时间戳恢复显示", "Stop runtime UI refresh in the background and off the home tab; restore elapsed time from timestamps."),
+                L10n.text("修复播放检查先检测到锁屏时丢失自动恢复意图；视频等待播放时不再反复调用播放", "Preserve unlock recovery when the playback watchdog detects lock first; avoid repeated play calls while waiting."),
                 L10n.text("锁屏时保留已建立的画中画会话，暂停高刷驱动、内容刷新、播放及音频保活", "Keep established PiP on lock while pausing refresh drivers, content updates, playback and silent audio."),
                 L10n.text("收到解锁通知后自动恢复；会话被系统停止时尝试一次重启，回到应用时再次尝试", "Resume on unlock notification. If PiP was stopped, attempt a bounded restart; retry on foreground activation."),
                 L10n.text("自动重启成功后恢复锁屏前的悬浮窗高度；手动操作取消待恢复状态", "Restore previous PiP height after recovery; explicit user actions cancel pending recovery."),
