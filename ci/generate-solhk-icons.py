@@ -2,7 +2,7 @@
 """Rebuild all iOS icon sizes from the user-selected silver STRA mark.
 
 The compressed RGB source is deliberately checked into this independent fork.
-Only Python stdlib and macOS built-in sips are needed on GitHub Actions.
+Only the Python standard library is needed on GitHub Actions.
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ def png_bytes(size: int, pixels: bytearray) -> bytes:
         b"\x00" + pixels[y * stride:(y + 1) * stride]
         for y in range(size)
     )
-    return (b"\x89PNG\\r\\n\x1a\\n"
+    return (b"\x89PNG\r\n\x1a\n"
             + chunk(b"IHDR", struct.pack(">2I5B", size, size, 8, 6, 0, 0, 0))
             + chunk(b"IDAT", zlib.compress(scanlines, level=9))
             + chunk(b"IEND", b""))
