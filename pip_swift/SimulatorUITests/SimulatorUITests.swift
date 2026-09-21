@@ -4,7 +4,7 @@ final class SimulatorUITests: XCTestCase {
     func testLaunchNavigateAndBackgroundForeground() {
         let app = XCUIApplication()
         app.launchArguments = ["-globalRefresh.launchCelebration.seen.1.1.0.tutorial-v7", "YES",
-                               "-globalRefresh.latestChangelog.seen.1.1.1-beta8", "YES"]
+                               "-globalRefresh.latestChangelog.seen.1.1.1-beta9", "YES"]
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
         let tabs = app.tabBars.firstMatch
