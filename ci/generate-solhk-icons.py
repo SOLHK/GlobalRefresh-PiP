@@ -26,10 +26,10 @@ def png_bytes(size: int, pixels: bytearray) -> bytes:
                 + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff))
     stride = size * 4
     scanlines = b"".join(
-        b"\\x00" + pixels[y * stride:(y + 1) * stride]
+        b"\x00" + pixels[y * stride:(y + 1) * stride]
         for y in range(size)
     )
-    return (b"\\x89PNG\\r\\n\\x1a\\n"
+    return (b"\x89PNG\\r\\n\x1a\\n"
             + chunk(b"IHDR", struct.pack(">2I5B", size, size, 8, 6, 0, 0, 0))
             + chunk(b"IDAT", zlib.compress(scanlines, level=9))
             + chunk(b"IEND", b""))
