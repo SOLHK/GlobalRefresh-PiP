@@ -85,7 +85,6 @@ private enum SOLHKStyle {
             )
         }
         .ignoresSafeArea()
-        .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 
