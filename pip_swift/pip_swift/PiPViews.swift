@@ -1729,6 +1729,7 @@ struct VersionPageView: View {
             .frame(maxWidth: 440)
             .frame(maxWidth: .infinity, alignment: .center)
             .frame(maxHeight: .infinity, alignment: .top)
+            .zIndex(3)
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: layout.versionMainSpacing) {
@@ -1875,15 +1876,15 @@ struct VersionPageView: View {
                     }
                 }
                 }
+                .padding(.horizontal, layout.versionHorizontalPadding)
                 .frame(maxWidth: 440)
                 .frame(maxWidth: .infinity)
-                .padding(.horizontal, layout.versionHorizontalPadding)
                 .padding(.top, layout.isCompact ? 74 : 92)
                 .padding(.bottom, 32)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-             fixedDebugPanel
+            fixedDebugPanel
             keepAliveInfoPanel
             if L10n.isBetaBuild {
                 betaInfoPanel
