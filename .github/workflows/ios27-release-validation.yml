@@ -12,6 +12,8 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+      - name: Generate SOLHK app icons
+        run: python3 ci/generate-solhk-icons.py
       - name: Configure hosted XCTest and UI test targets
         run: |
           gem install --user-install xcodeproj --no-document
