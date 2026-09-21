@@ -100,8 +100,8 @@ enum L10n {
             || normalizedVersion.contains("测试")
     }
 
-    static var appName: String { text("SOLHK 高刷", "SOLHK Refresh") }
-    static var editionLabel: String { text("独立维护版", "INDEPENDENT EDITION") }
+    static var appName: String { text("STRA高刷", "STRA Refresh") }
+    static var editionLabel: String { text("STRA 独立版", "STRA EDITION") }
     static var editionSubtitle: String { text("低功耗高刷实验 · 不代表第三方App实际帧率", "Low-power refresh experiment · not other apps' measured FPS") }
     static var floatingWindow: String { text("悬浮窗", "Floating") }
     static var frameRateDemo: String { text("帧率演示", "Frame Rate") }
