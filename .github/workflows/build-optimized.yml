@@ -11,13 +11,15 @@ permissions:
   contents: read
 jobs:
   build:
-    runs-on: xcode-27
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - name: Generate SOLHK app icons
         run: python3 ci/generate-solhk-icons.py
       - name: Build for iPhone
         run: |
+          XCODE27=$(find /Applications -maxdepth 1 -name 'Xcode_27*.app' -type d | sort -V | tail -1)
+          if [ -n "$XCODE27" ]; then sudo xcode-select -s "$XCODE27/Contents/Developer"; fi
           xcodebuild -version
           xcodebuild -workspace pip_swift/pip_swift.xcworkspace -scheme pip_swift -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
       - name: Package unsigned IPA
