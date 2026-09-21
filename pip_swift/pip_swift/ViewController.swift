@@ -303,18 +303,29 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     private var resumePiPAfterUnlock = false
     private var didAttemptUnlockRestart = false
     private var heightBeforeLock: CGFloat?
+    private var thermalRecoveryPending = false
+    private var thermalRecoveryDeadline: CFTimeInterval?
+    private var thermalRecoveryWorkItem: DispatchWorkItem?
+
+    private func cancelThermalRecovery() {
+        thermalRecoveryWorkItem?.cancel()
+        thermalRecoveryWorkItem = nil
+        thermalRecoveryDeadline = nil
+        thermalRecoveryPending = false
+    }
 #if DEBUG && targetEnvironment(simulator)
     private var simulatorRestartAttempts = 0
 #endif
 
     private func cancelUnlockResume() {
+        cancelThermalRecovery()
         resumePiPAfterUnlock = false
         didAttemptUnlockRestart = false
         heightBeforeLock = nil
     }
 
     var shouldPauseForPower: Bool {
-        isDeviceLockedForPower || !UIApplication.shared.isProtectedDataAvailable
+        thermalRecoveryPending || isDeviceLockedForPower || !UIApplication.shared.isProtectedDataAvailable
             || ProcessInfo.processInfo.thermalState == .serious
             || ProcessInfo.processInfo.thermalState == .critical
     }
@@ -336,6 +347,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     private var lastClockOverlayTimeText = ""
     private var lastClockOverlayFPSText = ""
     private var lastClockOverlayNetworkText = ""
+    private var lastClockOverlayUpdateTimestamp: CFTimeInterval?
     private var lastClockRenderTick = -1
     private var lastBackgroundClockDiagnosticsTimestamp: CFTimeInterval?
     private var lastLoggedPiPSuspendedAtSide: Bool?
@@ -3549,6 +3561,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         lastClockOverlayFPSText = ""
         lastClockOverlayNetworkText = ""
         lastClockRenderTick = -1
+        lastClockOverlayUpdateTimestamp = nil
         lastBackgroundClockDiagnosticsTimestamp = nil
         if hadClockTimer {
             AppDebugLogger.log("PiP clock timers stopped")
@@ -3570,6 +3583,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         lastClockOverlayFPSText = ""
         lastClockOverlayNetworkText = ""
         lastClockRenderTick = -1
+        lastClockOverlayUpdateTimestamp = nil
         lastBackgroundClockDiagnosticsTimestamp = nil
     }
 
@@ -3824,6 +3838,9 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
 
     private func updateClockOverlay(timestamp: CFTimeInterval, forceNetworkSample: Bool) {
         guard let clockOverlayView else { return }
+        if !forceNetworkSample, let previous = lastClockOverlayUpdateTimestamp,
+           timestamp >= previous, timestamp - previous < 0.1 { return }
+        lastClockOverlayUpdateTimestamp = timestamp
         if !isContentExtremeModeEnabled {
             updateClockMetrics(timestamp: timestamp, forceNetworkSample: forceNetworkSample)
         }
@@ -3831,7 +3848,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         let renderTick = isContentExtremeModeEnabled
             ? Int(now.timeIntervalSince1970.rounded(.down))
             : Int((now.timeIntervalSince1970 * 10).rounded(.down))
-        let fpsText = isContentExtremeModeEnabled ? "" : "\(displayedFPS)Hz"
+        let fpsText = isContentExtremeModeEnabled ? "" : L10n.text("本App \(displayedFPS)Hz", "App \(displayedFPS)Hz")
         let networkText = isContentExtremeModeEnabled ? "" : currentNetworkSpeedText
         guard forceNetworkSample
             || renderTick != lastClockRenderTick
@@ -3840,6 +3857,9 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
             return
         }
 
+        // Record even unchanged display text, so 120 Hz callbacks do not
+        // repeatedly format the same tenth-of-a-second bucket.
+        lastClockRenderTick = renderTick
         let timeText = clockFormatter.string(from: now)
         guard timeText != lastClockOverlayTimeText
             || fpsText != lastClockOverlayFPSText
@@ -5252,11 +5272,51 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
 
     func applyThermalState(_ state: ProcessInfo.ThermalState) {
         if state == .serious || state == .critical {
+            // Preserve only a session the user actually requested. Manual stop
+            // and route/reset actions cancel this intent through cancelUnlockResume.
+            let shouldRecover = thermalRecoveryPending || resumePiPAfterUnlock
+                || (wantsPiPActive && !isStoppingPiP)
+            let savedHeight = heightBeforeLock ?? clampedPiPHeight
             cancelUnlockResume()
-            suspendPiPForPower(reason: L10n.text("过热，已暂停", "Paused: too warm"))
+            thermalRecoveryPending = shouldRecover
+            heightBeforeLock = shouldRecover ? savedHeight : nil
+            suspendPiPForPower(reason: L10n.text("过热暂停 · 降温后自动恢复", "Heat pause · resumes after cooling"))
+        } else if thermalRecoveryPending {
+            if state == .nominal {
+                if thermalRecoveryDeadline == nil {
+                    thermalRecoveryDeadline = CACurrentMediaTime() + 30
+                }
+                if thermalRecoveryWorkItem == nil, let deadline = thermalRecoveryDeadline {
+                    let work = DispatchWorkItem { [weak self] in
+                        self?.finishThermalRecovery(now: CACurrentMediaTime(), state: ProcessInfo.processInfo.thermalState)
+                    }
+                    thermalRecoveryWorkItem = work
+                    DispatchQueue.main.asyncAfter(deadline: .now() + max(0, deadline - CACurrentMediaTime()), execute: work)
+                }
+            } else {
+                // Fair is still warm. Require a fresh 30 seconds at nominal.
+                thermalRecoveryWorkItem?.cancel()
+                thermalRecoveryWorkItem = nil
+                thermalRecoveryDeadline = nil
+            }
         }
-        // Cooling down does not silently restart an expensive PiP session.
         NotificationCenter.default.post(name: Self.refreshDemandDidChangeNotification, object: self)
+    }
+
+    private func finishThermalRecovery(now: CFTimeInterval, state: ProcessInfo.ThermalState) {
+        thermalRecoveryWorkItem = nil
+        guard thermalRecoveryPending else { return }
+        guard state == .nominal else { applyThermalState(state); return }
+        guard let deadline = thermalRecoveryDeadline, now >= deadline else { return }
+        let savedHeight = heightBeforeLock
+        cancelThermalRecovery()
+        resumePiPAfterUnlock = true
+        didAttemptUnlockRestart = false
+        heightBeforeLock = savedHeight
+        // If locked, retain intent until the normal unlock path runs.
+        resumePiPAfterUnlockIfPossible()
+        NotificationCenter.default.post(name: Self.refreshDemandDidChangeNotification, object: self)
+        updateHomeView()
     }
 
     private func pausePiPForLock() {
@@ -5273,7 +5333,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         // polling task alive just to receive unlock. iOS may still suspend us.
         guard !overheated, pipController?.isPictureInPictureActive == true,
               !isPiPTransitioning, resumePiPAfterUnlock else {
-            if overheated { cancelUnlockResume() }
+            if overheated { applyThermalState(ProcessInfo.processInfo.thermalState) }
             suspendPiPForPower(reason: powerPauseMessage ?? L10n.text("节能暂停", "Power pause"))
             return
         }
@@ -5391,6 +5451,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
     @objc private func handleDidBecomeActive() {
         isAppInBackgroundForUI = false
         isDeviceLockedForPower = !UIApplication.shared.isProtectedDataAvailable
+        applyThermalState(ProcessInfo.processInfo.thermalState)
         if shouldPauseForPower {
             suspendPiPForPower(reason: L10n.text("锁屏或过热，已暂停", "Paused: locked or too warm"))
             return
@@ -5415,8 +5476,8 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
             return
         }
         if shouldPauseForPower {
-            cancelUnlockResume()
-            suspendPiPForPower(reason: L10n.text("过热，已暂停", "Paused: too warm"))
+            applyThermalState(ProcessInfo.processInfo.thermalState)
+            suspendPiPForPower(reason: L10n.text("降温等待中", "Waiting for cooling"))
             return
         }
         print("进入后台")
@@ -5784,6 +5845,10 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
 #if DEBUG && targetEnvironment(simulator)
 // Simulator-only access to real lifecycle paths. These hooks are absent from IPA builds.
 extension ViewController {
+    var simulatorThermalRecoveryPending: Bool { thermalRecoveryPending }
+    func simulatorFinishCooling() {
+        finishThermalRecovery(now: (thermalRecoveryDeadline ?? CACurrentMediaTime()) + 1, state: .nominal)
+    }
     var simulatorRuntimeUIState: (hasTimer: Bool, duration: TimeInterval) {
         (pipRuntimeTimer != nil, pipRuntimeDuration)
     }
@@ -6442,3 +6507,4 @@ private enum PlaceholderVideoFactory {
 		    }
 
 		}
+

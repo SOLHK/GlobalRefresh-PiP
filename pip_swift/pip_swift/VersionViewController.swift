@@ -683,6 +683,17 @@ struct AppChangelogSection {
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
         AppChangelogSection(
+            version: L10n.text("1.1.1-beta9 STRA 自动恢复与低开销显示（26.9.22）", "1.1.1-beta9 STRA Recovery and Display Efficiency (2026.9.22)"),
+            items: [
+                L10n.text("时钟文字与网速显示最多每秒更新10次，保留高刷驱动和帧率采样", "Limit clock and network display work to 10 updates/sec while preserving refresh requests and FPS sampling."),
+                L10n.text("过热暂停后，温度正常持续30秒再尝试恢复；手动停止会取消恢复", "After a heat pause, attempt recovery after 30 seconds at normal temperature; manual stop cancels recovery."),
+                L10n.text("更新 STRA 控制台与帮助说明，明确本App回调频率不代表其他App实际帧率", "Refresh the STRA console and help; app callback rate is not other apps' actual FPS.")
+            ]
+        )
+    }
+
+    static var version111beta8: AppChangelogSection {
+        AppChangelogSection(
             version: L10n.text("1.1.1-beta8 STRA高刷低功耗与简约图标（26.9.21）", "1.1.1-beta8 STRA Refresh Low Power and Icon (2026.9.21)"),
             items: [
                 L10n.text("更换简约银白S图标；锁屏与后台停止无意义的调试帧监控", "Use a minimalist silver S icon; pause unnecessary background and lock-screen stutter diagnostics."),
@@ -923,6 +934,7 @@ final class ChangelogViewController: UIViewController {
 
         let stackView = UIStackView(arrangedSubviews: [
             makeSection(section: AppChangelogCatalog.latest),
+            makeSection(section: AppChangelogCatalog.version111beta8),
             makeSection(section: AppChangelogCatalog.version111beta6),
             makeSection(section: AppChangelogCatalog.version111beta5),
             makeSection(section: AppChangelogCatalog.version111beta4),
@@ -1365,11 +1377,11 @@ private final class FAQViewController: UIViewController {
         let stackView = UIStackView(arrangedSubviews: [
             makeQuestion(
                 question: L10n.text("1.这个APP的作用是什么？", "1. What does this app do?"),
-                answer: L10n.text("通过将悬浮窗挂在侧面，解锁系统的1-120hz自适应刷新率，而非1-80hz，可以使流畅度得到提升，跟悬浮时钟是一个效果，同时增加了保活（实测挂一周都不会掉后台）和隐藏悬浮窗功能", "It docks a PiP floating window to the screen edge to unlock the system's 1-120 Hz adaptive refresh range instead of 1-80 Hz, improving smoothness. It also adds background keep-alive and hidden PiP support.")
+                answer: L10n.text("通过画中画请求更高刷新率，尝试改善部分场景的流畅度；保留隐藏悬浮窗、锁屏节能与恢复功能。效果和后台存活取决于系统及设备，不能保证所有App生效。", "It docks a PiP floating window to the screen edge to unlock the system's 1-120 Hz adaptive refresh range instead of 1-80 Hz, improving smoothness. It also adds background keep-alive and hidden PiP support.")
             ),
             makeQuestion(
                 question: L10n.text("2.生效后是一直120hz吗，会不会很耗电，怎么判断是否生效呢", "2. Does it stay at 120 Hz all the time?"),
-                answer: L10n.text("滑动的时候最高120hz，静止的时候还是1hz。打开后，iOS的系统设置页面上下滑动自行观察。", "No. It can reach 120 Hz while scrolling, and still drops very low while idle. Open it and scroll in iOS Settings to observe the difference.")
+                answer: L10n.text("刷新率由系统、温度和前台App共同决定，不能保证静止时1Hz或滑动时120Hz。悬浮窗存活仅表示画中画运行，本App测到的回调频率不代表其他App的实际帧率。", "Actual refresh depends on iOS, temperature and the foreground app. Neither 1 Hz idle nor 120 Hz scrolling is guaranteed. PiP status confirms only the session; this app’s callback rate does not measure other apps.")
             ),
             makeQuestion(
                 question: L10n.text("3.60hz的手机和锁60hz的APP能生效吗", "3. Does it work on 60 Hz devices or apps locked to 60 Hz?"),
@@ -1450,3 +1462,4 @@ private final class FAQViewController: UIViewController {
         return stack
     }
 }
+

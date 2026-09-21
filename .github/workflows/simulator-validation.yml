@@ -2,7 +2,7 @@ name: iPhone simulator validation
 on:
   workflow_dispatch:
   push:
-    branches: [codex/power-saving-beta2]
+    branches: [codex/power-saving-beta2, codex/stra-beta9]
     paths: ['pip_swift/**', 'ci/**', '.github/workflows/simulator-validation.yml']
 permissions:
   contents: read
@@ -57,3 +57,4 @@ jobs:
           path: |
             simulator-evidence
             SimulatorResults.xcresult
+

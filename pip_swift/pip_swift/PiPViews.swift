@@ -354,7 +354,7 @@ struct PiPHomeView: View {
                 .padding(.bottom, 1)
 
             HStack(alignment: .center) {
-                Text(L10n.appName)
+                Text(L10n.text("STRA 高刷控制台", "STRA Refresh Console"))
                     .font(.system(size: layout.headerTitleSize, weight: .black, design: .rounded))
                     .foregroundColor(Color(UIColor.label))
                     .lineLimit(1)
@@ -577,7 +577,7 @@ struct PiPHomeView: View {
     }
 
     private var pipStatusTitleLabel: some View {
-        Text(L10n.text("悬浮窗状态", "PiP status"))
+        Text(L10n.text("悬浮窗存活状态", "PiP session status"))
             .font(.system(size: 14, weight: .semibold))
             .foregroundColor(Color(UIColor.secondaryLabel))
             .lineLimit(1)
@@ -2919,7 +2919,7 @@ private struct VersionDescriptionView: View {
     var body: some View {
         VStack(spacing: isCompact ? 5 : 8) {
             Text(L10n.text(
-                "STRA 独立维护 · 低功耗高刷实验",
+                "STRA 高刷 · 独立维护与优化",
                 "STRA independent edition · maintained by SOLHK"
             ))
                 .fontWeight(.semibold)
@@ -2928,8 +2928,8 @@ private struct VersionDescriptionView: View {
             Text(L10n.editionSubtitle)
 
             Text(L10n.text(
-                "此版本不是原作者的官方发行版",
-                "Not an official release by the upstream authors"
+                "独立界面 · 锁屏节能 · 温度恢复",
+                "Independent interface · lock savings · thermal recovery"
             ))
 
             HStack(spacing: 4) {
@@ -3834,3 +3834,4 @@ private struct LiquidGlassButtonStyle: ButtonStyle {
         )
     }
 }
+
