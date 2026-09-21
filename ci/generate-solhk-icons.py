@@ -10,8 +10,6 @@ import base64
 import json
 from pathlib import Path
 import struct
-import subprocess
-import tempfile
 import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,40 +33,55 @@ def png_bytes(size: int, pixels: bytearray) -> bytes:
             + chunk(b"IEND", b""))
 
 
+def resize_pixels(raw: bytes, size: int) -> bytearray:
+    """Bilinear resampling without Pillow/sips: reproducible on CI and locally."""
+    out = bytearray(size * size * 4)
+    xcoords = []
+    for x in range(size):
+        sx = max(0.0, min(MASTER_SIZE - 1.0, (x + 0.5) * MASTER_SIZE / size - 0.5))
+        x0 = int(sx)
+        xcoords.append((x0, min(MASTER_SIZE - 1, x0 + 1), sx - x0))
+    for y in range(size):
+        sy = max(0.0, min(MASTER_SIZE - 1.0, (y + 0.5) * MASTER_SIZE / size - 0.5))
+        y0 = int(sy)
+        y1 = min(MASTER_SIZE - 1, y0 + 1)
+        ty = sy - y0
+        row0 = y0 * MASTER_SIZE * 3
+        row1 = y1 * MASTER_SIZE * 3
+        for x, (x0, x1, tx) in enumerate(xcoords):
+            top = row0 + x0 * 3
+            top_right = row0 + x1 * 3
+            bottom = row1 + x0 * 3
+            bottom_right = row1 + x1 * 3
+            pos = (y * size + x) * 4
+            for channel in range(3):
+                high = raw[top + channel] * (1 - tx) + raw[top_right + channel] * tx
+                low = raw[bottom + channel] * (1 - tx) + raw[bottom_right + channel] * tx
+                out[pos + channel] = round(high * (1 - ty) + low * ty)
+            out[pos + 3] = 255
+    return out
+
+
 def main() -> None:
     raw = zlib.decompress(base64.b64decode(SOURCE.read_text().strip()))
     expected = MASTER_SIZE * MASTER_SIZE * 3
     if len(raw) != expected:
         raise ValueError(f"silver icon is corrupted: {len(raw)} != {expected}")
 
-    # Preserve the chosen silver-on-white artwork; never overlay the old
-    # '120'/SOLHK bitmap font or the speedometer halo.
-    rgba = bytearray(MASTER_SIZE * MASTER_SIZE * 4)
-    for i in range(MASTER_SIZE * MASTER_SIZE):
-        rgba[4 * i:4 * i + 3] = raw[3 * i:3 * i + 3]
-        rgba[4 * i + 3] = 255
-
-    with tempfile.TemporaryDirectory(prefix="stra-icon-") as temp:
-        master = Path(temp) / "STRA-silver.png"
-        master.write_bytes(png_bytes(MASTER_SIZE, rgba))
-        contents = json.loads((ASSETS / "Contents.json").read_text())
-        generated = 0
-        for asset in contents["images"]:
-            filename = asset.get("filename")
-            if not filename:
-                continue
-            points = float(asset["size"].split("x")[0])
-            scale = float(asset.get("scale", "1x").removesuffix("x"))
-            pixels = round(points * scale)
-            if pixels == MASTER_SIZE:
-                (ASSETS / filename).write_bytes(master.read_bytes())
-            else:
-                subprocess.run([
-                    "sips", "-s", "format", "png",
-                    "-z", str(pixels), str(pixels),
-                    str(master), "--out", str(ASSETS / filename)
-                ], check=True, capture_output=True)
-            generated += 1
+    # Use the user-selected silver mark. Do not overlay the old speedometer,
+    # pixel-font watermark or test-version numerals.
+    contents = json.loads((ASSETS / "Contents.json").read_text())
+    generated = 0
+    for asset in contents["images"]:
+        filename = asset.get("filename")
+        if not filename:
+            continue
+        points = float(asset["size"].split("x")[0])
+        scale = float(asset.get("scale", "1x").removesuffix("x"))
+        pixels = round(points * scale)
+        image = resize_pixels(raw, pixels)
+        (ASSETS / filename).write_bytes(png_bytes(pixels, image))
+        generated += 1
     print(f"Generated {generated} minimalist silver STRA app icon assets")
 
 
