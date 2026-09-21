@@ -2608,7 +2608,7 @@ private struct GitHubLinkIcon: View {
         )
         .clipShape(Circle())
         .contentShape(Circle())
-        .accessibilityLabel(L10n.text("STRA刷新 GitHub项目", "STRA Refresh GitHub project"))
+        .accessibilityLabel(L10n.text("STRA Refresh GitHub项目", "STRA Refresh GitHub project"))
     }
 
     private func glassBackground(shape: Circle) -> AnyView {
@@ -2879,7 +2879,7 @@ private struct VersionDescriptionView: View {
     var body: some View {
         VStack(spacing: isCompact ? 5 : 8) {
             Text(L10n.text(
-                "STRA刷新 · 独立维护与优化",
+                "STRA Refresh · 独立维护与优化",
                 "STRA Refresh · independently maintained by SOLHK"
             ))
                 .fontWeight(.semibold)
@@ -2897,7 +2897,7 @@ private struct VersionDescriptionView: View {
                     .font(.system(size: isCompact ? 13 : 15, weight: .bold))
             }
             .foregroundColor(STRAStyle.accent)
-            .accessibilityHint(L10n.text("查看 STRA刷新 项目源码", "Open the STRA Refresh source repository"))
+            .accessibilityHint(L10n.text("查看 STRA Refresh 项目源码", "Open the STRA Refresh source repository"))
 
             HStack(spacing: 4) {
                 Text(L10n.text("开源致谢：", "Based on: "))

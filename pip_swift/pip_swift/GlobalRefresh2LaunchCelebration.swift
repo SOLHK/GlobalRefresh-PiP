@@ -135,7 +135,7 @@ struct GlobalRefresh2LaunchCelebrationView: View {
             scheduledFinish?.cancel()
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(L10n.text("STRA刷新 \(L10n.versionDisplay)", "STRA Refresh \(L10n.versionDisplay)")))
+        .accessibilityLabel(Text(L10n.text("STRA Refresh \(L10n.versionDisplay)", "STRA Refresh \(L10n.versionDisplay)")))
         .accessibilityAddTraits(.isButton)
         .accessibilityHint(Text(L10n.text("轻触继续或跳过启动动画", "Tap to continue or skip the launch animation")))
     }

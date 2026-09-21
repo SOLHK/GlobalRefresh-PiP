@@ -683,9 +683,9 @@ struct AppChangelogSection {
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
         AppChangelogSection(
-            version: L10n.text("2.0.0 STRA刷新 · 全新独立版（26.9.22）", "2.0.0 STRA Refresh · Independent Edition (2026.9.22)"),
+            version: L10n.text("2.0.0 STRA Refresh · 全新独立版（26.9.22）", "2.0.0 STRA Refresh · Independent Edition (2026.9.22)"),
             items: [
-                L10n.text("正式启用 STRA刷新 品牌和 2.0.0 版本序列，安装包名称与中英文桌面名称统一", "Launch STRA Refresh branding and the 2.0.0 series, with consistent IPA and localized display names."),
+                L10n.text("正式启用 STRA Refresh 品牌和 2.0.0 版本序列，安装包名称与中英文桌面名称统一", "Launch STRA Refresh branding and the 2.0.0 series, with consistent IPA and localized display names."),
                 L10n.text("首页控制区重新分行，版本页改为可滚动自适应布局，处理窄屏与文字错位", "Separate Home header controls and use a scrollable adaptive About layout to prevent cramped or overlapping controls."),
                 L10n.text("版本页增加 SOLHK 项目链接，GitHub 图标及更新入口仅指向独立仓库", "Add the SOLHK repository to About; direct the GitHub icon and update links to the independent project."),
                 L10n.text("保留上一版画中画、锁屏节能与温度保护实现；实际全局帧率仍需真机验证", "Preserve the previous PiP, lock savings and thermal protections; real third-party FPS still requires device testing.")

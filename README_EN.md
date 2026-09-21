@@ -2,7 +2,7 @@
   <img src="assets/app-icon.png" alt="Global Refresh PiP icon" width="96" height="96">
 </p>
 
-# STRA Refresh · STRA刷新
+# STRA Refresh · STRA Refresh
 
 <h3>
   <a href="README.md">Simplified Chinese</a> | English | <a href="DEVELOPMENT_PRD.md">开发文档 PRD</a> | <a href="DEVELOPMENT_PRD_EN.md">Development Document PRD</a>
