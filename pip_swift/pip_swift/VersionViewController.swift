@@ -850,7 +850,7 @@ final class LatestChangelogViewController: UIViewController {
             glassView = UIVisualEffectView(effect: effect)
         } else {
             glassView = UIVisualEffectView(effect: UIBlurEffect(style: .systemMaterial))
-            glassView.contentView.backgroundColor = UIColor.secondarySystemBackground.withAlphaComponent(0.42)
+            glassView.contentView.backgroundColor = UIColor.secondarySystemBackground.withAlphaComponent(0.12)
         }
         glassView.layer.cornerRadius = 30
         glassView.layer.cornerCurve = .continuous
@@ -1255,7 +1255,7 @@ private final class UpdateAvailableViewController: UIViewController {
             glassView = UIVisualEffectView(effect: effect)
         } else {
             glassView = UIVisualEffectView(effect: UIBlurEffect(style: .systemMaterial))
-            glassView.contentView.backgroundColor = UIColor.secondarySystemBackground.withAlphaComponent(0.42)
+            glassView.contentView.backgroundColor = UIColor.secondarySystemBackground.withAlphaComponent(0.12)
         }
         glassView.layer.cornerRadius = cornerRadius
         glassView.layer.cornerCurve = .continuous
@@ -1324,7 +1324,7 @@ private final class UpdateStatusViewController: UIViewController {
             glassView = UIVisualEffectView(effect: effect)
         } else {
             glassView = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterial))
-            glassView.contentView.backgroundColor = UIColor.systemGroupedBackground.withAlphaComponent(0.42)
+            glassView.contentView.backgroundColor = UIColor.systemGroupedBackground.withAlphaComponent(0.12)
         }
         glassView.layer.cornerRadius = cornerRadius
         glassView.layer.cornerCurve = .continuous
