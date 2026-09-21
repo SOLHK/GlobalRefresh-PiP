@@ -624,6 +624,12 @@ final class VersionViewController: UIViewController {
             KeepAliveLogger.resetLogs()
             MetricKitLogger.shared.resetLogs()
             PowerUsageLogger.startFreshStatistics()
+            // Debug mode may be enabled after an existing PiP has already started.
+            // Its didStart callback will not repeat, so seed an active session here.
+            if let home = tabBarController?.viewControllers?.compactMap({ $0 as? ViewController }).first,
+               home.hasActivePiPForDiagnostics {
+                PowerUsageLogger.markPiPStart()
+            }
             MetricKitLogger.shared.start()
             DebugDiagnosticsMonitor.setEnabled(true)
             ProcessTerminationDiagnostics.prepareForLaunch()
@@ -676,6 +682,17 @@ struct AppChangelogSection {
 
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
+        AppChangelogSection(
+            version: L10n.text("1.1.1-beta7 STRA高刷独立版（26.9.21）", "1.1.1-beta7 STRA Refresh (2026.9.21)"),
+            items: [
+                L10n.text("正式命名 STRA高刷，统一桌面、首页、启动页、日志、快捷指令与图标", "Rename the app to STRA Refresh across the home screen, Home, launch, diagnostics, Shortcuts and icon."),
+                L10n.text("修复开启调试前画中画已运行时，耗电辅助统计仍显示悬浮窗运行0秒", "Correct PiP usage statistics when diagnostics are enabled during an active PiP session."),
+                L10n.text("保留 beta5 真机验证过的解锁高刷恢复和低功耗保护逻辑", "Retain beta5's device-validated unlock recovery and low-power protection.")
+            ]
+        )
+    }
+
+    static var version111beta6: AppChangelogSection {
         AppChangelogSection(
             version: L10n.text("1.1.1-beta6 SOLHK 独立版界面（26.9.21）", "1.1.1-beta6 SOLHK Independent Edition (2026.9.21)"),
             items: [
@@ -906,6 +923,7 @@ final class ChangelogViewController: UIViewController {
 
         let stackView = UIStackView(arrangedSubviews: [
             makeSection(section: AppChangelogCatalog.latest),
+            makeSection(section: AppChangelogCatalog.version111beta6),
             makeSection(section: AppChangelogCatalog.version111beta5),
             makeSection(section: AppChangelogCatalog.version111beta4),
             makeSection(section: AppChangelogCatalog.version110fix),
