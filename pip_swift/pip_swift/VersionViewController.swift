@@ -683,11 +683,11 @@ struct AppChangelogSection {
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
         AppChangelogSection(
-            version: L10n.text("2.0.2 STRA Refresh · 原生液态玻璃与浮层修复（26.9.22）", "2.0.2 STRA Refresh · Liquid Glass & Dismiss Fix (2026.9.22)"),
+            version: L10n.text("2.0.2 STRA Refresh · 一体式控制与通透玻璃（26.9.22）", "2.0.2 STRA Refresh · Unified Controls & Clear Glass (2026.9.22)"),
             items: [
-                L10n.text("关于页设置卡片加入关闭按钮及点外部收起，修复点击被全屏透明层吞掉", "About Preferences gains a close button and tap-outside dismissal, fixing the full-screen hit-testing trap."),
-                L10n.text("首页删除切换样式和使用指南，保留悬浮窗启停、最小化及高度", "Remove Style and Guide from Home. Keep Start/Stop, Minimize and Window Height."),
-                L10n.text("使用 Xcode 27 构建，iOS 26/27 采用 SwiftUI 原生液态玻璃，旧系统兼容超薄材质", "Build with Xcode 27 and native Liquid Glass on iOS 26/27, with ultrathin material fallback.")
+                L10n.text("开启悬浮窗与一键最小化合并为同一主按钮，开启后自动切换；关闭入口移动到运行状态卡片", "Start and minimize share the same primary button; Stop moves into the session card."),
+                L10n.text("删除首页高度调节入口，优化主按钮尺寸、状态排版与浮层可触达性", "Remove the home height editor and improve primary-action, status and overlay layouts."),
+                L10n.text("降低玻璃叠色与底色不透明度，保留 iOS 26/27 原生 Liquid Glass；当前最低为0.1pt（PlayerLayer 1pt）", "Reduce opaque tints for native iOS 26/27 Liquid Glass; minimum remains 0.1 pt (PlayerLayer 1 pt).")
             ]
         )
     }
