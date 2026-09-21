@@ -285,7 +285,7 @@ enum KeepAliveLogger {
         let isActive = UserDefaults.standard.bool(forKey: sessionActiveKey)
 
         return """
-        STRA高刷保活日志
+        STRA刷新保活日志
         App版本：\(version) (\(build))
         Bundle ID：\(bundleID)
         系统版本：iOS \(device.systemVersion)
@@ -1379,7 +1379,7 @@ enum KeepAliveNotificationTester {
                 """
             )
             let content = UNMutableNotificationContent()
-            content.title = L10n.text("STRA高刷悬浮窗已停止", "STRA Refresh PiP Stopped")
+            content.title = L10n.text("STRA刷新悬浮窗已停止", "STRA Refresh PiP Stopped")
             content.body = notificationBody
             content.sound = .default
 

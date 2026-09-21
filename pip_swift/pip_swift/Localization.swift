@@ -5,6 +5,13 @@
 
 import Foundation
 
+// Single source for every project link in the independent STRA edition.
+enum STRAProject {
+    static let repository = "SOLHK/GlobalRefresh-PiP"
+    static let projectURL = URL(string: "https://github.com/\(repository)")!
+    static let releasesURL = URL(string: "https://github.com/\(repository)/releases")!
+}
+
 enum L10n {
     enum Language: String {
         case chinese = "zh"
@@ -89,7 +96,7 @@ enum L10n {
     }
 
     static var versionDisplay: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1.1-beta1"
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0.0"
     }
 
     static var isBetaBuild: Bool {
@@ -100,7 +107,7 @@ enum L10n {
             || normalizedVersion.contains("测试")
     }
 
-    static var appName: String { text("STRA高刷", "STRA Refresh") }
+    static var appName: String { text("STRA刷新", "STRA Refresh") }
     static var editionLabel: String { text("STRA 独立版", "STRA EDITION") }
     static var editionSubtitle: String { text("低功耗高刷实验 · 不代表第三方App实际帧率", "Low-power refresh experiment · not other apps' measured FPS") }
     static var floatingWindow: String { text("悬浮窗", "Floating") }

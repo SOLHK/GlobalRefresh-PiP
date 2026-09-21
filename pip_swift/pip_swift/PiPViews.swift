@@ -232,15 +232,12 @@ struct PiPHomeView: View {
                     StartAndHidePiPButton(title: startAndHidePiPButtonTitle) {
                         runAfterDismissingSettings(onStartAndHidePiP)
                     }
-                    .offset(y: -5)
-
                     PrimaryPiPButton(title: isPiPActive ? L10n.text("关闭悬浮窗", "Stop PiP") : L10n.text("开启悬浮窗", "Enable PiP")) {
                         runAfterDismissingSettings(onTogglePiP)
                     }
                 }
-                    .frame(maxWidth: 286)
+                    .frame(maxWidth: 320)
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .offset(y: -5)
                     .padding(.horizontal, layout.homePrimaryHorizontalPadding)
                     .padding(.bottom, layout.homePrimaryBottomPadding)
             }
@@ -348,60 +345,54 @@ struct PiPHomeView: View {
         }
     }
 
+    // STRA 2.0: brand and utilities have their own row; the title never competes
+    // for width with settings and appearance controls on smaller iPhones.
     private var homeHeader: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            STRAStyle.editionMark
-                .padding(.bottom, 1)
-
-            HStack(alignment: .center) {
-                Text(L10n.text("STRA 高刷控制台", "STRA Refresh Console"))
-                    .font(.system(size: layout.headerTitleSize, weight: .black, design: .rounded))
-                    .foregroundColor(Color(UIColor.label))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
+        VStack(alignment: .leading, spacing: layout.isCompact ? 5 : 8) {
+            HStack(spacing: 10) {
+                STRAStyle.editionMark
                     .layoutPriority(1)
-
-                Spacer(minLength: 8)
-
-                HStack(spacing: 8) {
-                    Button {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        dismissKeepAliveInfoIfNeeded()
-                        dismissPiPStatusInfoIfNeededRespectingPersistence()
-                        dismissNotificationFrequencyInfoIfNeeded()
-                        dismissPiPStoppedNotificationInfoIfNeeded()
-                        dismissEngineRouteInfoIfNeeded()
-                        dismissSettingsIfNeeded()
-                        onToggleAppearanceMode()
-                    } label: {
-                        AppearanceModeButton(
-                            isDarkModeForced: isDarkModeForced,
-                            isCurrentAppearanceDark: isCurrentAppearanceDark
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    Button {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        dismissKeepAliveInfoIfNeeded()
-                        dismissPiPStatusInfoIfNeededRespectingPersistence()
-                        dismissNotificationFrequencyInfoIfNeeded()
-                        onToggleSettings()
-                    } label: {
-                        SettingsGearButton(title: L10n.text("更多设置", "More"), isExpanded: isSettingsVisible)
-                    }
-                    .buttonStyle(.plain)
+                Spacer(minLength: 0)
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    dismissKeepAliveInfoIfNeeded()
+                    dismissPiPStatusInfoIfNeededRespectingPersistence()
+                    dismissNotificationFrequencyInfoIfNeeded()
+                    dismissPiPStoppedNotificationInfoIfNeeded()
+                    dismissEngineRouteInfoIfNeeded()
+                    dismissSettingsIfNeeded()
+                    onToggleAppearanceMode()
+                } label: {
+                    AppearanceModeButton(
+                        isDarkModeForced: isDarkModeForced,
+                        isCurrentAppearanceDark: isCurrentAppearanceDark
+                    )
                 }
+                .buttonStyle(.plain)
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    dismissKeepAliveInfoIfNeeded()
+                    dismissPiPStatusInfoIfNeededRespectingPersistence()
+                    dismissNotificationFrequencyInfoIfNeeded()
+                    onToggleSettings()
+                } label: {
+                    SettingsGearButton(title: L10n.text("更多设置", "More"), isExpanded: isSettingsVisible)
+                }
+                .buttonStyle(.plain)
             }
-
+            Text(L10n.appName)
+                .font(.system(size: layout.headerTitleSize + 2, weight: .black, design: .rounded))
+                .foregroundColor(Color(UIColor.label))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+                .accessibilityAddTraits(.isHeader)
             HStack(spacing: 7) {
                 Text(L10n.text("当前保活模式", "Keep-alive mode"))
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(Color(UIColor.secondaryLabel))
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
-                    .fixedSize(horizontal: true, vertical: false)
-
                 Button {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     dismissSettingsIfNeeded()
@@ -425,7 +416,6 @@ struct PiPHomeView: View {
                 }
                 .buttonStyle(.plain)
                 .layoutPriority(1)
-
                 Spacer(minLength: 0)
             }
         }
@@ -1734,11 +1724,14 @@ struct VersionPageView: View {
                     .frame(height: 38)
                 }
                 .buttonStyle(GlassCapsuleButtonStyle())
-                .padding(.trailing, 20)
+                .padding(.trailing, layout.headerHorizontalPadding)
             }
+            .frame(maxWidth: 440)
+            .frame(maxWidth: .infinity, alignment: .center)
             .frame(maxHeight: .infinity, alignment: .top)
 
-            VStack(spacing: layout.versionMainSpacing) {
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: layout.versionMainSpacing) {
                 STRAStyle.editionMark
 
                 Text(L10n.appName)
@@ -1872,30 +1865,25 @@ struct VersionPageView: View {
                         }
                     )
 
-                if !layout.isCompact {
-                    Color.clear
-                        .frame(height: layout.versionReservedControlsHeight)
-                        .padding(.top, layout.versionReservedControlsTopPadding)
-                }
-
-                if !layout.isCompact {
+                versionActions
+                    .padding(.top, 12)
+                if displayedDebugModeEnabled {
                     copyDiagnosticsLogButton
                         .frame(height: layout.versionCopyLogRowHeight)
                     if shouldShowDebugModeStatus {
                         debugStatusLabels
                     }
                 }
+                }
+                .frame(maxWidth: 440)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, layout.versionHorizontalPadding)
+                .padding(.top, layout.isCompact ? 74 : 92)
+                .padding(.bottom, 32)
             }
-            .padding(.horizontal, layout.versionHorizontalPadding)
-            .padding(.top, layout.versionContentTopPadding)
-            .frame(maxHeight: .infinity, alignment: .top)
-            .animation(nil, value: displayedDebugModeEnabled)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            fixedFAQButtons
-            if layout.isCompact {
-                fixedCompactDiagnosticsControls
-            }
-            fixedDebugPanel
+             fixedDebugPanel
             keepAliveInfoPanel
             if L10n.isBetaBuild {
                 betaInfoPanel
@@ -2029,9 +2017,7 @@ struct VersionPageView: View {
         dismissKeepAliveInfoPanel()
         dismissBetaInfoPanel()
         dismissDebugPanel()
-        if let url = URL(string: "https://github.com/SOLHK/GlobalRefresh-PiP") {
-            UIApplication.shared.open(url)
-        }
+        UIApplication.shared.open(STRAProject.projectURL)
     }
 
     private var keepAliveModeTitle: String {
@@ -2042,47 +2028,44 @@ struct VersionPageView: View {
         displayedKeepAlivePolicy.detail
     }
 
-    private var fixedFAQButtons: some View {
-        GeometryReader { proxy in
-            HStack(spacing: 10) {
-                Button {
-                    openGitHubLink()
-                } label: {
-                    GitHubLinkIcon()
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    dismissKeepAliveInfoPanel()
-                    dismissDebugPanel()
-                    onShowFAQ()
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "questionmark.circle")
-                            .font(.system(size: 17, weight: .bold))
-                        Text(L10n.faq)
-                            .font(.system(size: 17, weight: .bold))
-                    }
-                    .foregroundColor(Color(UIColor.systemBlue))
-                    .padding(.horizontal, 18)
-                    .frame(height: 46)
-                }
-                .buttonStyle(GlassCapsuleButtonStyle())
-
-                Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    dismissKeepAliveInfoPanel()
-                    toggleDebugPanel()
-                } label: {
-                    DebugModeButton(isExpanded: isDebugPanelVisible)
-                }
-                .buttonStyle(.plain)
+    private var versionActions: some View {
+        HStack(spacing: 10) {
+            Button {
+                openGitHubLink()
+            } label: {
+                GitHubLinkIcon()
             }
-            .frame(height: 46)
-            .position(x: proxy.size.width / 2, y: fixedFAQRowCenterY)
+            .buttonStyle(.plain)
+
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                dismissKeepAliveInfoPanel()
+                dismissDebugPanel()
+                onShowFAQ()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "questionmark.circle")
+                        .font(.system(size: 17, weight: .bold))
+                    Text(L10n.faq)
+                        .font(.system(size: 17, weight: .bold))
+                }
+                .foregroundColor(Color(UIColor.systemBlue))
+                .padding(.horizontal, 18)
+                .frame(height: 46)
+            }
+            .buttonStyle(GlassCapsuleButtonStyle())
+
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                dismissKeepAliveInfoPanel()
+                toggleDebugPanel()
+            } label: {
+                DebugModeButton(isExpanded: isDebugPanelVisible)
+            }
+            .buttonStyle(.plain)
         }
-        .zIndex(4)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .frame(height: 46)
     }
 
     private var copyDiagnosticsLogButton: some View {
@@ -2161,30 +2144,6 @@ struct VersionPageView: View {
 
     private var debugStatusLabels: some View {
         debugModeStatusLabel
-    }
-
-    private var fixedCopyDiagnosticsLogButton: some View {
-        GeometryReader { proxy in
-            copyDiagnosticsLogButton
-                .frame(height: layout.versionCopyLogRowHeight)
-                .position(x: proxy.size.width / 2, y: fixedFAQRowCenterY - 58)
-        }
-        .zIndex(4.5)
-    }
-
-    private var fixedCompactDiagnosticsControls: some View {
-        GeometryReader { proxy in
-            VStack(spacing: 6) {
-                copyDiagnosticsLogButton
-                    .frame(height: layout.versionCopyLogRowHeight)
-                if shouldShowDebugModeStatus {
-                    debugStatusLabels
-                }
-            }
-            .frame(height: compactDiagnosticsControlsHeight)
-            .position(x: proxy.size.width / 2, y: fixedFAQRowCenterY - compactDiagnosticsControlsYOffset)
-        }
-        .zIndex(4.55)
     }
 
     private var debugDiagnosticsInfoPanel: some View {
@@ -2638,7 +2597,7 @@ private struct GitHubLinkIcon: View {
             .scaledToFit()
             .foregroundColor(Color(UIColor.label))
             .frame(width: 25, height: 25)
-        .frame(width: 44, height: 44)
+            .frame(width: 44, height: 44)
         .background(glassBackground(shape: shape))
         .overlay(
             shape.strokeBorder(
@@ -2648,7 +2607,7 @@ private struct GitHubLinkIcon: View {
         )
         .clipShape(Circle())
         .contentShape(Circle())
-        .accessibilityLabel("GitHub")
+        .accessibilityLabel(L10n.text("STRA刷新 GitHub项目", "STRA Refresh GitHub project"))
     }
 
     private func glassBackground(shape: Circle) -> AnyView {
@@ -2919,8 +2878,8 @@ private struct VersionDescriptionView: View {
     var body: some View {
         VStack(spacing: isCompact ? 5 : 8) {
             Text(L10n.text(
-                "STRA 高刷 · 独立维护与优化",
-                "STRA independent edition · maintained by SOLHK"
+                "STRA刷新 · 独立维护与优化",
+                "STRA Refresh · independently maintained by SOLHK"
             ))
                 .fontWeight(.semibold)
                 .foregroundColor(STRAStyle.accent)
@@ -2931,6 +2890,13 @@ private struct VersionDescriptionView: View {
                 "独立界面 · 锁屏节能 · 温度恢复",
                 "Independent interface · lock savings · thermal recovery"
             ))
+
+            Link(destination: STRAProject.projectURL) {
+                Label(L10n.text("SOLHK · GitHub项目", "SOLHK · GitHub Project"), systemImage: "arrow.up.right")
+                    .fontWeight(.bold)
+            }
+            .foregroundColor(STRAStyle.accent)
+            .accessibilityHint(L10n.text("查看 STRA刷新 项目源码", "Open the STRA Refresh source repository"))
 
             HStack(spacing: 4) {
                 Text(L10n.text("开源致谢：", "Based on: "))
