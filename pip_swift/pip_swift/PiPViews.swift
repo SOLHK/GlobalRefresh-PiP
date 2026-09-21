@@ -2100,6 +2100,7 @@ struct VersionPageView: View {
                 DebugModeButton(isExpanded: isDebugPanelVisible)
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("stra.about.openSettings")
         }
         .frame(maxWidth: .infinity, alignment: .center)
         .frame(height: 46)
@@ -2197,11 +2198,18 @@ struct VersionPageView: View {
         .zIndex(7)
     }
 
+    // The previous full-screen GeometryReader intercepted taps but offered no
+    // dismiss target outside the debug card. A dedicated scrim and X fix that.
     private var fixedDebugPanel: some View {
         GeometryReader { proxy in
             if isDebugPanelVisible || isDebugPanelClosing {
-                VStack(spacing: 0) {
-                    Spacer(minLength: 0)
+                ZStack(alignment: .bottom) {
+                    Color.black.opacity(0.12)
+                        .ignoresSafeArea()
+                        .contentShape(Rectangle())
+                        .onTapGesture { dismissDebugPanel() }
+                        .accessibilityLabel(L10n.text("关闭设置", "Dismiss Preferences"))
+                        .accessibilityIdentifier("stra.about.settingsBackdrop")
 
                     DebugModePanel(
                         isEnabled: displayedDebugModeEnabled,
@@ -2210,27 +2218,22 @@ struct VersionPageView: View {
                         onSetEnabled: setDebugMode,
                         onSetKeepAlivePolicy: setKeepAlivePolicy,
                         onSetBetaUpdateChannelEnabled: onSetBetaUpdateChannelEnabled,
+                        onClose: dismissDebugPanel,
                         isClosing: isDebugPanelClosing
                     )
-                    .padding(.bottom, max(proxy.safeAreaInsets.bottom, 0) + 5)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, max(proxy.safeAreaInsets.bottom, 0) + 12)
+                    .accessibilityIdentifier("stra.about.settingsPanel")
                 }
                 .frame(width: proxy.size.width, height: proxy.size.height, alignment: .bottom)
-                .scaleEffect(isDebugPanelVisible ? 1 : 0.985, anchor: .bottom)
+                .scaleEffect(isDebugPanelVisible ? 1 : 0.97, anchor: .bottom)
                 .opacity(isDebugPanelVisible ? 1 : 0)
                 .allowsHitTesting(isDebugPanelVisible && !isDebugPanelClosing)
-                .transition(
-                    .asymmetric(
-                        insertion: .opacity.combined(with: .scale(scale: 0.985, anchor: .bottom)),
-                        removal: .opacity
-                    )
-                )
-                .animation(
-                    .interpolatingSpring(mass: 0.45, stiffness: 420, damping: 36, initialVelocity: 0.12),
-                    value: isDebugPanelVisible
-                )
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                .animation(.spring(response: 0.3, dampingFraction: 0.85), value: isDebugPanelVisible)
             }
         }
-        .zIndex(5)
+        .zIndex(12)
     }
 
     private var keepAliveInfoPanel: some View {
@@ -2710,6 +2713,7 @@ private struct DebugModePanel: View {
     let onSetEnabled: (Bool) -> Void
     let onSetKeepAlivePolicy: (KeepAlivePolicy) -> Void
     let onSetBetaUpdateChannelEnabled: (Bool) -> Void
+    let onClose: () -> Void
     let isClosing: Bool
     @State private var displayedIsEnabled: Bool
     @State private var displayedKeepAlivePolicy: KeepAlivePolicy
@@ -2722,6 +2726,7 @@ private struct DebugModePanel: View {
         onSetEnabled: @escaping (Bool) -> Void,
         onSetKeepAlivePolicy: @escaping (KeepAlivePolicy) -> Void,
         onSetBetaUpdateChannelEnabled: @escaping (Bool) -> Void,
+        onClose: @escaping () -> Void,
         isClosing: Bool = false
     ) {
         self.isEnabled = isEnabled
@@ -2730,6 +2735,7 @@ private struct DebugModePanel: View {
         self.onSetEnabled = onSetEnabled
         self.onSetKeepAlivePolicy = onSetKeepAlivePolicy
         self.onSetBetaUpdateChannelEnabled = onSetBetaUpdateChannelEnabled
+        self.onClose = onClose
         self.isClosing = isClosing
         _displayedIsEnabled = State(initialValue: isEnabled)
         _displayedKeepAlivePolicy = State(initialValue: keepAlivePolicy)
@@ -2737,7 +2743,33 @@ private struct DebugModePanel: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        ScrollView(.vertical, showsIndicators: false) {
+          VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(L10n.text("偏好设置", "Preferences"))
+                        .font(.system(size: 21, weight: .black, design: .rounded))
+                    Text("STRA REFRESH  /  SYSTEM")
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .foregroundColor(Color(UIColor.secondaryLabel))
+                }
+                Spacer(minLength: 0)
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    onClose()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(Color(UIColor.label))
+                        .frame(width: 38, height: 38)
+                        .background(STRAStyle.glassSurface(cornerRadius: 19))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.text("关闭设置", "Close Preferences"))
+                .accessibilityIdentifier("stra.about.closeSettings")
+            }
+            .padding(.bottom, 5)
+
             HStack(spacing: 10) {
                 Image(systemName: "wrench.and.screwdriver")
                     .font(.system(size: 18, weight: .bold))
@@ -2838,18 +2870,16 @@ private struct DebugModePanel: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(Color(UIColor.secondaryLabel))
                 .fixedSize(horizontal: false, vertical: true)
+          }
+          .foregroundColor(Color(UIColor.label))
+          .padding(.horizontal, 18)
+          .padding(.vertical, 16)
         }
-        .foregroundColor(Color(UIColor.label))
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .frame(width: AdaptiveLayoutMetrics.current.panelWidth300)
+        .frame(width: min(390, UIScreen.main.bounds.width - 32))
+        .frame(maxHeight: max(265, UIScreen.main.bounds.height - 175))
         .background(panelBackground)
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(adaptiveGlassStrokeColor, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .shadow(color: Color.black.opacity(0.16), radius: 18, x: 0, y: 10)
+        .clipShape(RoundedRectangle(cornerRadius: 29, style: .continuous))
+        .shadow(color: Color.black.opacity(0.14), radius: 22, x: 0, y: 12)
         .onChange(of: isEnabled) { newValue in
             guard newValue != displayedIsEnabled else { return }
             displayedIsEnabled = newValue
@@ -2886,25 +2916,7 @@ private struct DebugModePanel: View {
     }
 
     private var panelBackground: AnyView {
-        let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
-        if isClosing {
-            return AnyView(
-                shape
-                    .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.22))
-            )
-        }
-        if #available(iOS 26.0, *) {
-            return AnyView(
-                shape
-                    .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.08))
-                    .glassEffect(.regular.interactive(), in: shape)
-            )
-        }
-        return AnyView(
-            shape
-                .fill(.ultraThinMaterial)
-                .overlay(shape.fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.28)))
-        )
+        STRAStyle.glassSurface(cornerRadius: 29, tint: STRAStyle.accent)
     }
 }
 
