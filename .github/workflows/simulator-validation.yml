@@ -24,11 +24,12 @@ jobs:
           import json
           data=json.load(open('/tmp/simulators.json'))['devices']
           candidates=[(runtime,d) for runtime,devices in data.items() if 'iOS' in runtime for d in devices if d['isAvailable'] and d['name'].startswith('iPhone')]
-          runtime,device=sorted(candidates,key=lambda x:(x[0],x[1]['name']))[-1]
+          runtime,device=sorted(candidates,key=lambda x:(x[0], 'Pro' in x[1]['name'], x[1]['name']))[-1]
           print(device['udid'])
           PY
           )
           echo "SIMULATOR_ID=$DEVICE_ID" >> "$GITHUB_ENV"
+          xcrun simctl erase "$DEVICE_ID"
           xcrun simctl boot "$DEVICE_ID"
           xcrun simctl bootstatus "$DEVICE_ID" -b
       - name: Run app-hosted lifecycle tests and UI tests
@@ -43,6 +44,10 @@ jobs:
           xcrun simctl io "$SIMULATOR_ID" screenshot simulator-evidence/final-screen.png || true
           xcrun xcresulttool get test-results summary --path SimulatorResults.xcresult --format json > simulator-evidence/summary.json || true
           xcrun xcresulttool export attachments --path SimulatorResults.xcresult --output-path simulator-evidence/attachments || true
+          cat simulator-evidence/summary.json
+          sips -Z 640 -s format jpeg -s formatOptions 55 simulator-evidence/final-screen.png --out /tmp/simulator-screen.jpg >/dev/null || true
+          python3 -c 'import pathlib,base64; p=pathlib.Path("/tmp/simulator-screen.jpg"); print("SIM_SCREEN_BASE64="+base64.b64encode(p.read_bytes()).decode()) if p.exists() else None'
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:

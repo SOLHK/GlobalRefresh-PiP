@@ -9,6 +9,8 @@ ui = p.new_target(:ui_test_bundle, 'SimulatorUITests', :ios, '15.0')
   target.add_file_references([group.new_file("#{target.name}.swift")])
   target.build_configurations.each do |config|
     config.build_settings['GENERATE_INFOPLIST_FILE'] = 'YES'
+    config.build_settings['PRODUCT_NAME'] = target.name
+    config.build_settings['PRODUCT_MODULE_NAME'] = target.name
     config.build_settings['SWIFT_VERSION'] = '5.0'
     config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = "com.globalrefresh.tests.#{target.name}"
     config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
