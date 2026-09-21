@@ -93,7 +93,7 @@ enum PowerUsageLogger {
         let launchText = launchTimestamp > 0 ? beijingFormatter.string(from: Date(timeIntervalSince1970: launchTimestamp)) : "unknown"
 
         return """
-        全局高刷耗电辅助日志
+        STRA高刷耗电辅助日志
         App版本：\(version) (\(build))
         Bundle ID：\(bundleID)
         系统版本：iOS \(device.systemVersion)
