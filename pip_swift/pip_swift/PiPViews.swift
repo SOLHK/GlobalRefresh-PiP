@@ -63,8 +63,8 @@ private struct AdaptiveLayoutMetrics {
 
 }
 
-// SOLHK visual identity. Purely static gradients: no animation or background timer.
-private enum SOLHKStyle {
+// STRA visual identity. Purely static gradients: no animation or background timer.
+private enum STRAStyle {
     static let accent = Color(red: 0.10, green: 0.68, blue: 0.94)
     static let secondary = Color(red: 0.43, green: 0.38, blue: 0.95)
 
@@ -94,7 +94,7 @@ private enum SOLHKStyle {
                 .font(.system(size: 15, weight: .bold))
                 .symbolRenderingMode(.palette)
                 .foregroundStyle(accent, accent.opacity(0.17))
-            Text("SOLHK")
+            Text("STRA")
                 .font(.system(size: 11, weight: .black, design: .rounded))
                 .tracking(1.6)
                 .foregroundColor(accent)
@@ -197,7 +197,7 @@ struct PiPHomeView: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            SOLHKStyle.canvas
+            STRAStyle.canvas
                 .contentShape(Rectangle())
                 .onTapGesture {
                     dismissKeepAliveInfoIfNeeded()
@@ -350,7 +350,7 @@ struct PiPHomeView: View {
 
     private var homeHeader: some View {
         VStack(alignment: .leading, spacing: 7) {
-            SOLHKStyle.editionMark
+            STRAStyle.editionMark
                 .padding(.bottom, 1)
 
             HStack(alignment: .center) {
@@ -1659,7 +1659,7 @@ struct VersionPageView: View {
 
     var body: some View {
         ZStack {
-            SOLHKStyle.canvas
+            STRAStyle.canvas
                 .onTapGesture {
                     dismissDebugPanel()
                     dismissKeepAliveInfoPanel()
@@ -1739,7 +1739,7 @@ struct VersionPageView: View {
             .frame(maxHeight: .infinity, alignment: .top)
 
             VStack(spacing: layout.versionMainSpacing) {
-                SOLHKStyle.editionMark
+                STRAStyle.editionMark
 
                 Text(L10n.appName)
                     .font(.system(size: layout.versionTitleSize, weight: .black, design: .rounded))
@@ -2919,11 +2919,11 @@ private struct VersionDescriptionView: View {
     var body: some View {
         VStack(spacing: isCompact ? 5 : 8) {
             Text(L10n.text(
-                "SOLHK 独立维护 · 低功耗高刷实验",
-                "Independently maintained by SOLHK"
+                "STRA 独立维护 · 低功耗高刷实验",
+                "STRA independent edition · maintained by SOLHK"
             ))
                 .fontWeight(.semibold)
-                .foregroundColor(SOLHKStyle.accent)
+                .foregroundColor(STRAStyle.accent)
 
             Text(L10n.editionSubtitle)
 
@@ -2935,10 +2935,10 @@ private struct VersionDescriptionView: View {
             HStack(spacing: 4) {
                 Text(L10n.text("开源致谢：", "Based on: "))
                 Link("CaiWanFeng", destination: URL(string: "https://github.com/CaiWanFeng/PiP")!)
-                    .foregroundColor(SOLHKStyle.accent)
+                    .foregroundColor(STRAStyle.accent)
                 Text("·")
                 Link("Yoroin", destination: URL(string: "https://github.com/Yoroin/GlobalRefresh-PiP")!)
-                    .foregroundColor(SOLHKStyle.accent)
+                    .foregroundColor(STRAStyle.accent)
             }
         }
         .font(.system(size: isCompact ? 13 : 15, weight: .medium))
@@ -2962,7 +2962,7 @@ private struct PrimaryPiPButton: View {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(SOLHKStyle.accent.opacity(0.18))
+                        .fill(STRAStyle.accent.opacity(0.18))
 
                     Image(systemName: "bolt.horizontal.circle.fill")
                         .font(.system(size: layout.isCompact ? 19 : 21, weight: .black))
@@ -3656,14 +3656,14 @@ private struct PrimaryLiquidGlassButtonStyle: ButtonStyle {
             .background(primaryBackground(isPressed: configuration.isPressed, shape: shape))
             .overlay(
                 shape.strokeBorder(
-                    SOLHKStyle.accent.opacity(configuration.isPressed ? 0.46 : 0.3),
+                    STRAStyle.accent.opacity(configuration.isPressed ? 0.46 : 0.3),
                     lineWidth: 1.4
                 )
             )
             .clipShape(shape)
             .scaleEffect(configuration.isPressed ? 0.965 : 1)
             .shadow(
-                color: SOLHKStyle.accent.opacity(configuration.isPressed ? 0.12 : 0.24),
+                color: STRAStyle.accent.opacity(configuration.isPressed ? 0.12 : 0.24),
                 radius: configuration.isPressed ? 10 : 20,
                 x: 0,
                 y: configuration.isPressed ? 5 : 12
@@ -3678,7 +3678,7 @@ private struct PrimaryLiquidGlassButtonStyle: ButtonStyle {
         if #available(iOS 26.0, *) {
             return AnyView(
                 shape
-                    .fill(SOLHKStyle.accent.opacity(isPressed ? 0.2 : 0.12))
+                    .fill(STRAStyle.accent.opacity(isPressed ? 0.2 : 0.12))
                     .glassEffect(.regular.interactive(), in: shape)
             )
         }
@@ -3686,7 +3686,7 @@ private struct PrimaryLiquidGlassButtonStyle: ButtonStyle {
             shape
                 .fill(.ultraThinMaterial)
                 .overlay(
-                    shape.fill(SOLHKStyle.accent.opacity(isPressed ? 0.24 : 0.14))
+                    shape.fill(STRAStyle.accent.opacity(isPressed ? 0.24 : 0.14))
                 )
         )
     }
@@ -3700,14 +3700,14 @@ private struct SecondaryPrimaryGlassButtonStyle: ButtonStyle {
             .background(background(isPressed: configuration.isPressed, shape: shape))
             .overlay(
                 shape.strokeBorder(
-                    SOLHKStyle.accent.opacity(configuration.isPressed ? 0.38 : 0.24),
+                    STRAStyle.accent.opacity(configuration.isPressed ? 0.38 : 0.24),
                     lineWidth: 1.1
                 )
             )
             .clipShape(shape)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .shadow(
-                color: SOLHKStyle.accent.opacity(configuration.isPressed ? 0.08 : 0.16),
+                color: STRAStyle.accent.opacity(configuration.isPressed ? 0.08 : 0.16),
                 radius: configuration.isPressed ? 7 : 12,
                 x: 0,
                 y: configuration.isPressed ? 3 : 7
@@ -3719,7 +3719,7 @@ private struct SecondaryPrimaryGlassButtonStyle: ButtonStyle {
         if #available(iOS 26.0, *) {
             return AnyView(
                 shape
-                    .fill(SOLHKStyle.accent.opacity(isPressed ? 0.16 : 0.08))
+                    .fill(STRAStyle.accent.opacity(isPressed ? 0.16 : 0.08))
                     .glassEffect(.regular.interactive(), in: shape)
             )
         }
@@ -3728,7 +3728,7 @@ private struct SecondaryPrimaryGlassButtonStyle: ButtonStyle {
             shape
                 .fill(.ultraThinMaterial)
                 .overlay(
-                    shape.fill(SOLHKStyle.accent.opacity(isPressed ? 0.18 : 0.1))
+                    shape.fill(STRAStyle.accent.opacity(isPressed ? 0.18 : 0.1))
                 )
         )
     }
