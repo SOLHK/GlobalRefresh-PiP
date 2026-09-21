@@ -75,35 +75,40 @@ private enum STRAStyle {
         if #available(iOS 26.0, *) {
             return AnyView(
                 shape
-                    .fill(tint.opacity(0.09))
+                    .fill(tint.opacity(0.018))
                     .glassEffect(.regular, in: shape)
                     .overlay(shape.strokeBorder(
-                        Color.white.opacity(0.26), lineWidth: 0.8
+                        Color.white.opacity(0.17), lineWidth: 0.65
                     ))
             )
         }
         return AnyView(
             shape
                 .fill(.ultraThinMaterial)
-                .overlay(shape.fill(tint.opacity(0.09)))
-                .overlay(shape.strokeBorder(Color(UIColor.separator).opacity(0.22), lineWidth: 0.8))
+                .overlay(shape.fill(tint.opacity(0.025)))
+                .overlay(shape.strokeBorder(Color(UIColor.separator).opacity(0.18), lineWidth: 0.65))
         )
     }
 
     static var canvas: some View {
         ZStack {
-            Color(UIColor.systemGroupedBackground)
+            Color(UIColor.systemBackground)
             RadialGradient(
-                colors: [accent.opacity(0.18), .clear],
+                colors: [accent.opacity(0.28), .clear],
                 center: .topTrailing,
                 startRadius: 0,
-                endRadius: 430
+                endRadius: 460
             )
             RadialGradient(
-                colors: [secondary.opacity(0.10), .clear],
+                colors: [secondary.opacity(0.19), .clear],
                 center: .bottomLeading,
                 startRadius: 0,
-                endRadius: 490
+                endRadius: 530
+            )
+            LinearGradient(
+                colors: [Color.white.opacity(0.07), .clear, accent.opacity(0.045)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
         }
         .ignoresSafeArea()
@@ -454,7 +459,7 @@ struct PiPHomeView: View {
                 .foregroundColor(Color(UIColor.secondaryLabel))
                 .padding(.horizontal, 12)
                 .frame(height: 32)
-                .background(Capsule().fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.72)))
+                .background(keepAliveModeBadgeBackground)
             }
             .buttonStyle(.plain)
         }
@@ -465,14 +470,14 @@ struct PiPHomeView: View {
         if #available(iOS 26.0, *) {
             return AnyView(
                 shape
-                    .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.22))
+                    .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.035))
                     .glassEffect(.regular.interactive(), in: shape)
             )
         }
         return AnyView(
             shape
                 .fill(.ultraThinMaterial)
-                .overlay(shape.fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.36)))
+                .overlay(shape.fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.07)))
                 .overlay(shape.strokeBorder(legacyGlassStrokeColor, lineWidth: 1))
         )
     }
@@ -515,7 +520,7 @@ struct PiPHomeView: View {
     private var statusBadgeBackground: some View {
         let shape = Capsule()
         return shape
-            .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.62))
+            .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.12))
             .overlay(
                 shape.strokeBorder(
                     Color(pipStatusColor).opacity(isPiPActive ? 0.28 : 0.16),
@@ -527,7 +532,7 @@ struct PiPHomeView: View {
     private var notificationBadgeBackground: some View {
         let shape = Capsule()
         return shape
-            .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.62))
+            .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.12))
             .overlay(
                 shape.strokeBorder(notificationBadgeColor.opacity(isAnyNotificationEnabled ? 0.24 : 0.18), lineWidth: 1)
             )
@@ -536,7 +541,7 @@ struct PiPHomeView: View {
     private var engineRouteBadgeBackground: some View {
         let shape = Capsule()
         return shape
-            .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.62))
+            .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.12))
             .overlay(
                 shape.strokeBorder(Color(UIColor.systemBlue).opacity(0.2), lineWidth: 1)
             )
