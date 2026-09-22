@@ -11,16 +11,30 @@ permissions:
   contents: read
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v4
       - name: Generate SOLHK app icons
         run: python3 ci/generate-solhk-icons.py
       - name: Build for iPhone
         run: |
-          XCODE27=$(find /Applications -maxdepth 1 -name 'Xcode_27*.app' -type d | sort -V | tail -1)
-          if [ -n "$XCODE27" ]; then sudo xcode-select -s "$XCODE27/Contents/Developer"; fi
+          set -euo pipefail
+          XCODE27=""
+          for candidate in /Applications/Xcode*.app; do
+            [ -d "$candidate" ] || continue
+            build=$(/usr/libexec/PlistBuddy -c "Print :ProductBuildVersion" "$candidate/Contents/version.plist" 2>/dev/null || true)
+            if [ "$build" = "27A266a" ]; then XCODE27="$candidate"; break; fi
+          done
+          if [ -z "$XCODE27" ]; then
+            echo "::error::Released Xcode 27.0 (27A266a) is not installed. Refusing older SDK fallback."
+            exit 1
+          fi
+          sudo xcode-select -s "$XCODE27/Contents/Developer"
           xcodebuild -version
+          test "$(xcodebuild -version | head -n 1)" = "Xcode 27.0"
+          SDK_VERSION=$(xcrun --sdk iphoneos --show-sdk-version)
+          echo "Selected iPhoneOS SDK: $SDK_VERSION"
+          case "$SDK_VERSION" in 27.*) ;; *) echo "::error::Requires iPhoneOS 27 SDK"; exit 1 ;; esac
           xcodebuild -workspace pip_swift/pip_swift.xcworkspace -scheme pip_swift -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
       - name: Package unsigned IPA
         run: |
