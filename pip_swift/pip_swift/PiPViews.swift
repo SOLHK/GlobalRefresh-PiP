@@ -1713,293 +1713,94 @@ struct VersionPageView: View {
     var body: some View {
         ZStack {
             STRAStyle.canvas
-                .onTapGesture {
-                    dismissDebugPanel()
-                    dismissKeepAliveInfoPanel()
-                    dismissBetaInfoPanel()
-                    dismissDebugDiagnosticsInfoPanel()
-                }
-
-            HStack(alignment: .center) {
-                PageHeaderTitle(title: L10n.about)
-
-                Spacer()
-
-                Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    guard !suppressNextCacheTap else {
-                        suppressNextCacheTap = false
-                        return
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 28) {
+                    HStack {
+                        Text(L10n.text("关于 STRA", "About STRA")).font(.largeTitle.weight(.bold))
+                        Spacer()
+                        Button { L10n.toggleLanguageOverride() } label: {
+                            Text(L10n.languageToggleTitle).font(.subheadline.weight(.semibold)).frame(minWidth: 44, minHeight: 44)
+                        }.buttonStyle(GlassCapsuleButtonStyle())
                     }
-                    dismissDebugPanel()
-                    dismissKeepAliveInfoPanel()
-                    dismissBetaInfoPanel()
-                    dismissDebugDiagnosticsInfoPanel()
-                    onRequestCacheCleanup()
-                } label: {
-                    CacheCleanupButton()
-                }
-                .buttonStyle(.plain)
-                .help(L10n.cacheCleanupTitle)
-                .accessibilityLabel(L10n.cacheCleanupTitle)
-                .accessibilityHint(L10n.text("长按可清空全部数据并回到首次加载页面", "Long press to erase all app data and return to the first-launch screen"))
-                .highPriorityGesture(
-                    LongPressGesture(minimumDuration: 1.05, maximumDistance: 22)
-                        .onEnded { _ in
-                            suppressNextCacheTap = true
-                            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-                            dismissDebugPanel()
-                            dismissKeepAliveInfoPanel()
-                            dismissBetaInfoPanel()
-                            dismissDebugDiagnosticsInfoPanel()
-                            onRequestClearAllData()
+                    HStack(alignment: .center, spacing: 18) {
+                        Image(systemName: "waveform.path")
+                            .font(.system(size: 32, weight: .medium))
+                            .foregroundStyle(STRAStyle.accent)
+                            .frame(width: 76, height: 76)
+                            .background(STRAStyle.glassSurface(cornerRadius: 24, tint: STRAStyle.accent))
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(L10n.appName).font(.title2.weight(.bold))
+                            Text(L10n.versionDisplay).font(.title3.monospacedDigit())
+                            Text("SOLHK · Independent Edition").font(.caption).foregroundStyle(.secondary)
                         }
-                )
-                .padding(.trailing, 2)
-
-                Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    dismissDebugPanel()
-                    dismissKeepAliveInfoPanel()
-                    dismissBetaInfoPanel()
-                    dismissDebugDiagnosticsInfoPanel()
-                    withAnimation(languageSwitchAnimation) {
-                        L10n.toggleLanguageOverride()
-                    }
-                } label: {
-                    LanguageToggleButton(title: L10n.languageToggleTitle)
-                }
-                .buttonStyle(.plain)
-                .padding(.trailing, 8)
-
-                Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    onShowChangelog()
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "clock.arrow.circlepath")
-                            .font(.system(size: 15, weight: .bold))
-                        Text(L10n.changelog)
-                            .font(.system(size: 15, weight: .bold))
-                    }
-                    .foregroundColor(Color(UIColor.systemBlue))
-                    .padding(.horizontal, 14)
-                    .frame(height: 38)
-                }
-                .buttonStyle(GlassCapsuleButtonStyle())
-                .padding(.trailing, layout.headerHorizontalPadding)
-            }
-            .frame(maxWidth: 440)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .frame(maxHeight: .infinity, alignment: .top)
-            .zIndex(3)
-
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: layout.versionMainSpacing) {
-                VStack(spacing: layout.isCompact ? 14 : 19) {
-                STRAStyle.editionMark
-
-                Text(L10n.appName)
-                    .font(.system(size: layout.versionTitleSize, weight: .black, design: .rounded))
-                    .foregroundColor(Color(UIColor.label))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
-
-                VStack(spacing: 8) {
-                    Text(L10n.text("当前版本", "Current Version"))
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(Color(UIColor.secondaryLabel))
-
-	                    VStack(spacing: 7) {
-	                        HStack(spacing: 8) {
-	                            Text(L10n.versionDisplay)
-	                                .font(.system(size: layout.versionNumberSize, weight: .bold, design: .rounded))
-	                                .foregroundColor(Color(UIColor.label))
-	                                .lineLimit(1)
-	                                .fixedSize(horizontal: true, vertical: true)
-	                                .layoutPriority(3)
-
-                                if L10n.isBetaBuild {
-                                    betaVersionBadge
-                                }
-
-                                Button {
-                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                    dismissDebugPanel()
-                                    dismissKeepAliveInfoPanel()
-                                    dismissBetaInfoPanel()
-                                    dismissDebugDiagnosticsInfoPanel()
-                                    onRequestUpdateCheck()
-                                } label: {
-                                    UpdateCheckButton(
-                                        hasUpdate: hasAvailableUpdate,
-                                        isChecking: isCheckingForUpdate
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                                .help(L10n.text("检查更新", "Check for Updates"))
-                                .accessibilityLabel(L10n.text("检查更新", "Check for Updates"))
-	                        }
-                        .fixedSize(horizontal: false, vertical: true)
-                        .layoutPriority(3)
-
-                        Button {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            onRequestUpdateCheck()
-                        } label: {
-                            let updateStatusColor = isCheckingForUpdate
-                                ? Color(UIColor.systemGreen)
-                                : hasUpdateCheckFailed
-                                ? Color(UIColor.systemOrange)
-                                : hasAvailableUpdate
-                                ? Color(UIColor.systemRed)
-                                : Color(UIColor.systemGreen)
-
-                            let updateStatusText = isCheckingForUpdate
-                                ? L10n.text("检测中", "Checking")
-                                : hasUpdateCheckFailed
-                                ? L10n.text("检查失败", "Check Failed")
-                                : hasAvailableUpdate
-                                ? L10n.text("检测到新版本", "New Version Available")
-                                : L10n.text("当前已是最新版", "You're Up to Date")
-
-                            HStack(spacing: 5) {
-                                Circle()
-                                    .fill(updateStatusColor)
-                                    .frame(width: 7, height: 7)
-                                Text(updateStatusText)
-                                    .font(.system(size: 12, weight: .bold))
+                    }.padding(.vertical, 6)
+                    VStack(alignment: .leading, spacing: 18) {
+                        HStack(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(L10n.text("软件更新", "Software update")).font(.headline)
+                                Text(updateSummary).font(.subheadline).foregroundStyle(.secondary)
                             }
-                            .foregroundColor(updateStatusColor)
-                            .padding(.horizontal, 10)
-                            .frame(height: 24)
-                            .background(
-                                Capsule()
-                                    .fill(updateStatusColor.opacity(0.1))
-                                    .overlay(
-                                        Capsule().strokeBorder(
-                                            updateStatusColor.opacity(0.32),
-                                            lineWidth: 1
-                                        )
-                                    )
-                            )
+                            Spacer()
+                            if isCheckingForUpdate { ProgressView() }
+                            else { Image(systemName: hasAvailableUpdate ? "arrow.down.circle" : "arrow.triangle.2.circlepath").foregroundStyle(STRAStyle.accent) }
                         }
-                        .buttonStyle(.plain)
+                        Button(action: onRequestUpdateCheck) {
+                            Text(L10n.text("检查更新", "Check for updates"))
+                                .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 14)
+                        }
+                        .buttonStyle(GlassCapsuleButtonStyle())
                         .disabled(isCheckingForUpdate)
-                        .transaction { transaction in
-                            transaction.animation = nil
-                        }
+                        .accessibilityIdentifier("stra.about.checkUpdate")
+                    }.padding(22).background(STRAStyle.glassSurface(cornerRadius: 28))
 
-                        Button {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            dismissDebugPanel()
-                            dismissDebugDiagnosticsInfoPanel()
-                            withAnimation(.interpolatingSpring(mass: 0.45, stiffness: 420, damping: 36, initialVelocity: 0.12)) {
-                                isKeepAliveInfoVisible.toggle()
-                            }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(keepAliveModeTitle)
-                                    .font(.system(size: 12, weight: .bold))
-                                Image(systemName: "questionmark.circle.fill")
-                                    .font(.system(size: 12, weight: .bold))
-                            }
-                            .foregroundColor(Color(UIColor.systemBlue))
-                            .padding(.leading, 9)
-                            .padding(.trailing, 7)
-                            .frame(height: 24)
-                            .background(versionFlagBackground)
-                        }
-                        .buttonStyle(.plain)
+                    VStack(spacing: 0) {
+                        aboutRow(L10n.changelog, symbol: "clock.arrow.circlepath", action: onShowChangelog)
+                        Divider().padding(.leading, 48)
+                        aboutRow(L10n.text("项目主页", "Project on GitHub"), symbol: "chevron.left.forwardslash.chevron.right", action: openGitHubLink)
+                        Divider().padding(.leading, 48)
+                        aboutRow(L10n.faq, symbol: "questionmark.circle", action: onShowFAQ)
                     }
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-                }
-                }
-                .padding(.vertical, layout.isCompact ? 18 : 24)
-                .padding(.horizontal, 14)
-                .frame(maxWidth: .infinity)
-                .background(STRAStyle.glassSurface(cornerRadius: 29, tint: STRAStyle.accent))
-
-                VersionDescriptionView(isCompact: layout.isCompact, languageIdentity: languageIdentity)
-                    .id("version-description-\(languageIdentity)")
-                    .background(
-                        GeometryReader { proxy in
-                            Color.clear.preference(
-                                key: VersionDescriptionFrameKey.self,
-                                value: proxy.frame(in: .named("versionPage"))
-                            )
-                        }
-                    )
-                    .padding(.vertical, 16)
-                    .padding(.horizontal, 10)
-                    .frame(maxWidth: .infinity)
-                    .background(STRAStyle.glassSurface(cornerRadius: 24))
-
-                versionActions
-                    .padding(.top, 12)
-                if displayedDebugModeEnabled {
-                    copyDiagnosticsLogButton
-                        .frame(height: layout.versionCopyLogRowHeight)
-                    if shouldShowDebugModeStatus {
-                        debugStatusLabels
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(L10n.text("工具与偏好", "Tools & preferences"))
+                            .font(.caption.weight(.semibold)).foregroundStyle(.secondary).padding(.bottom, 8)
+                        aboutRow(L10n.text("运行与调试设置", "Runtime & diagnostics"), symbol: "slider.horizontal.3", action: toggleDebugPanel)
+                            .accessibilityIdentifier("stra.about.openSettings")
+                        Divider().padding(.leading, 48)
+                        aboutRow(L10n.text("复制诊断日志", "Copy diagnostics"), symbol: "doc.text", action: onCopyDiagnosticsLog)
+                        Divider().padding(.leading, 48)
+                        aboutRow(L10n.text("清理缓存", "Clear cache"), symbol: "internaldrive", action: onRequestCacheCleanup)
                     }
+                    Text(L10n.text("轻盈运行，专注流畅。", "Less distraction. More flow."))
+                        .font(.footnote).foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.top, 8)
                 }
-                }
-                .padding(.horizontal, layout.versionHorizontalPadding)
-                .frame(maxWidth: 440)
-                .frame(maxWidth: .infinity)
-                .padding(.top, layout.isCompact ? 74 : 92)
-                .padding(.bottom, 32)
+                .padding(24).frame(maxWidth: 600).frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
             fixedDebugPanel
-            keepAliveInfoPanel
-            if L10n.isBetaBuild {
-                betaInfoPanel
-            }
-            debugDiagnosticsInfoPanel
         }
-        .coordinateSpace(name: "versionPage")
-        .animation(languageSwitchAnimation, value: languageRefreshToken)
-        .onReceive(NotificationCenter.default.publisher(for: L10n.languageDidChangeNotification)) { _ in
-            withAnimation(languageSwitchAnimation) {
-                languageRefreshToken += 1
-            }
-        }
-        .onChange(of: isDebugModeEnabled) { newValue in
-            guard newValue != displayedDebugModeEnabled else { return }
-            displayedDebugModeEnabled = newValue
-            if !newValue {
-                dismissDebugDiagnosticsInfoPanel()
-            }
-        }
-        .onChange(of: keepAlivePolicy) { newValue in
-            guard newValue != displayedKeepAlivePolicy else { return }
-            displayedKeepAlivePolicy = newValue
-        }
-        .onChange(of: isDebugDiagnosticsEnabled) { newValue in
-            guard newValue != displayedDebugDiagnosticsEnabled else { return }
-            displayedDebugDiagnosticsEnabled = newValue
-            if !newValue {
-                dismissDebugDiagnosticsInfoPanel()
-            }
-        }
-        .onChange(of: debugPanelResetToken) { _ in
-            dismissDebugPanel()
-            dismissKeepAliveInfoPanel()
-            dismissBetaInfoPanel()
-            dismissDebugDiagnosticsInfoPanel()
-        }
-        .onPreferenceChange(DebugModeStatusLabelFrameKey.self) { frame in
-            guard frame != .zero else { return }
-            debugModeStatusLabelFrame = frame
-        }
-        .onPreferenceChange(VersionDescriptionFrameKey.self) { frame in
-            guard frame != .zero else { return }
-            versionDescriptionFrame = frame
-        }
+        .onReceive(NotificationCenter.default.publisher(for: L10n.languageDidChangeNotification)) { _ in languageRefreshToken += 1 }
+        .onChange(of: isDebugModeEnabled) { displayedDebugModeEnabled = $0 }
+        .onChange(of: keepAlivePolicy) { displayedKeepAlivePolicy = $0 }
+        .onChange(of: isDebugDiagnosticsEnabled) { displayedDebugDiagnosticsEnabled = $0 }
+        .onChange(of: debugPanelResetToken) { _ in dismissDebugPanel() }
+    }
+
+    private var updateSummary: String {
+        if isCheckingForUpdate { return L10n.text("正在检查…", "Checking…") }
+        if hasUpdateCheckFailed { return L10n.text("暂时无法连接，请重试", "Unable to connect. Try again.") }
+        if hasAvailableUpdate { return L10n.text("有新版本可用", "An update is available") }
+        if hasCompletedUpdateCheck { return L10n.text("暂无更新版本", "No newer release available") }
+        return L10n.text("检查可用的新版本", "Check for a newer release")
+    }
+
+    private func aboutRow(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 16) {
+                Image(systemName: symbol).font(.system(size: 20)).foregroundStyle(STRAStyle.accent).frame(width: 28)
+                Text(title).font(.body.weight(.medium)).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+            }.frame(minHeight: 56).contentShape(Rectangle())
+        }.buttonStyle(.plain)
     }
 
     private func toggleDebugPanel() {

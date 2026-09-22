@@ -1,0 +1,50 @@
+name: STRA 2.0.3 redesigned UI validation
+on:
+  push:
+    branches: [codex/stra-ui-2.0.3]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: [release, beta]
+    runs-on: xcode-27
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select and verify exact Xcode and simulator
+        run: python3 ci/select-ui-validation.py ${{ matrix.channel }}
+      - name: Configure tests and icons
+        run: |
+          python3 ci/generate-solhk-icons.py
+          gem install --user-install xcodeproj --no-document
+          ruby ci/configure-simulator-tests.rb
+      - name: Build and run lifecycle and UI tests
+        run: |
+          set -o pipefail
+          xcodebuild test -workspace pip_swift/pip_swift.xcworkspace -scheme SimulatorValidation -configuration Debug -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath simulator-build -resultBundlePath SimulatorResults.xcresult -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO 2>&1 | tee simulator-tests.log
+      - name: Build unsigned IPA after tests pass
+        run: |
+          xcodebuild -workspace pip_swift/pip_swift.xcworkspace -scheme pip_swift -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+          mkdir -p package/Payload
+          cp -R build/Build/Products/Release-iphoneos/pip_swift.app package/Payload/
+          cd package
+          zip -qry ../STRA-Refresh-2.0.3-${{ matrix.channel }}-unsigned.ipa Payload
+      - name: Export test evidence
+        if: always()
+        run: |
+          mkdir -p evidence
+          cp simulator-tests.log evidence/ 2>/dev/null || true
+          xcrun xcresulttool get test-results summary --path SimulatorResults.xcresult --format json > evidence/summary.json || true
+          xcrun xcresulttool export attachments --path SimulatorResults.xcresult --output-path evidence/attachments || true
+          cat evidence/summary.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: STRA-2.0.3-${{ matrix.channel }}
+          path: |
+            evidence
+            *.ipa

@@ -4,7 +4,7 @@ final class SimulatorUITests: XCTestCase {
     func testLaunchNavigateAndBackgroundForeground() {
         let app = XCUIApplication()
         app.launchArguments = ["-globalRefresh.launchCelebration.seen.1.1.0.tutorial-v7", "YES",
-                               "-globalRefresh.latestChangelog.seen.2.0.2", "YES"]
+                               "-globalRefresh.latestChangelog.seen.2.0.3", "YES"]
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
         let tabs = app.tabBars.firstMatch
@@ -19,7 +19,7 @@ final class SimulatorUITests: XCTestCase {
             tab.tap()
             XCTAssertTrue(tab.isSelected)
             if index == 2 {
-                XCTAssertTrue(app.staticTexts["2.0.2"].waitForExistence(timeout: 8), "About must show the STRA 2.0 release")
+                XCTAssertTrue(app.staticTexts["2.0.3"].waitForExistence(timeout: 8), "About must show the STRA 2.0 release")
                 let openSettings = app.buttons["stra.about.openSettings"]
                 XCTAssertTrue(openSettings.waitForExistence(timeout: 8), "About preferences button must be visible")
                 openSettings.tap()
@@ -32,6 +32,20 @@ final class SimulatorUITests: XCTestCase {
                 )
                 XCTAssertEqual(XCTWaiter.wait(for: [disappeared], timeout: 5), .completed,
                                "About preferences should close without trapping touches")
+            }
+            if index == 1 {
+                XCTAssertTrue(app.staticTexts["stra.motion.fps"].waitForExistence(timeout: 8))
+                let mode = app.segmentedControls["stra.motion.mode"]
+                XCTAssertTrue(mode.exists)
+                mode.buttons.element(boundBy: 0).tap()
+                XCTAssertTrue(mode.buttons.element(boundBy: 0).isSelected)
+                mode.buttons.element(boundBy: 1).tap()
+                let play = app.buttons["stra.motion.play"]
+                XCTAssertTrue(play.isHittable)
+                play.tap()
+                play.tap()
+                app.swipeUp()
+                app.swipeDown()
             }
             if index == 0 {
                 XCTAssertTrue(app.staticTexts["Refresh Console"].exists || app.staticTexts["刷新控制台"].exists,

@@ -683,6 +683,17 @@ struct AppChangelogSection {
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
         AppChangelogSection(
+            version: L10n.text("2.0.3 · 全新帧率与版本界面", "2.0.3 · Motion Lab & About"),
+            items: [
+                L10n.text("重做帧率展示：本页回调频率、模式切换、可暂停动态演示与滑动体验", "Redesigned motion lab with callback measurement, modes, optional animation and scroll test."),
+                L10n.text("版本页重新布局：应用信息、更新状态、项目与诊断工具", "New About layout for identity, updates, project links and diagnostics."),
+                L10n.text("离开帧率页停止演示与测量，测量读数每半秒更新", "Stop preview and measurement off-page; update readings twice per second.")
+            ]
+        )
+    }
+
+    static var version202: AppChangelogSection {
+        AppChangelogSection(
             version: L10n.text("2.0.2 STRA Refresh · 一体式控制与通透玻璃（26.9.22）", "2.0.2 STRA Refresh · Unified Controls & Clear Glass (2026.9.22)"),
             items: [
                 L10n.text("开启悬浮窗与一键最小化合并为同一主按钮，开启后自动切换；关闭入口移动到运行状态卡片", "Start and minimize share the same primary button; Stop moves into the session card."),

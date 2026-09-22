@@ -425,109 +425,138 @@ private struct FrameRateTestPageView: View {
 
 struct RootFrameRateTestView: View {
     @AppStorage(FrameRatePreference.force120HzKey) private var isHighRefreshEnabled = true
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var frameTick = 0
-    @State private var isScrollActive = false
+    @State private var isVisible = false
+    @State private var isPlaying = false
 
     var body: some View {
         ZStack {
-            Color(UIColor.systemGroupedBackground)
-                .edgesIgnoringSafeArea(.all)
-
-            VStack(alignment: .leading, spacing: 0) {
-                PageHeaderTitle(title: L10n.frameRateDemo)
-
-                Text(L10n.text("可通过该页面的开关控制来对比80hz和120hz的区别，本app内所有页面帧率以及悬浮窗帧率受到该开关控制", "Use this page to compare 80 Hz and 120 Hz. The switch affects the app pages and the floating window refresh behavior."))
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Color(UIColor.secondaryLabel))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 20)
-                    .padding(.top, -6)
-                    .padding(.bottom, 14)
-
-                VStack(spacing: 14) {
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(L10n.text("高刷请求120Hz（影响悬浮窗）", "Request 120 Hz (including PiP)"))
-                                .font(.system(size: 17, weight: .bold))
-                                .foregroundColor(Color(UIColor.label))
-
-                            Text(isHighRefreshEnabled ? L10n.text("当前请求 120Hz 演示刷新", "Currently requesting 120 Hz demo refresh") : L10n.text("全局120功能已失效，请开始上下滑动体验系统80hz", "120 Hz boost is disabled. Scroll to test system 80 Hz."))
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color(UIColor.secondaryLabel))
+            Color(UIColor.systemBackground).ignoresSafeArea()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 26) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("MOTION LAB").font(.caption.weight(.bold)).tracking(3).foregroundStyle(.secondary)
+                            Text(L10n.text("感受每一帧", "Every frame matters"))
+                                .font(.largeTitle.weight(.bold))
                         }
-
                         Spacer()
-
-                        Toggle("", isOn: forceRefreshBinding)
-                            .labelsHidden()
+                        Image(systemName: "waveform.path").font(.title).foregroundStyle(.cyan)
                     }
-                    .padding(.horizontal, 18)
-                    .frame(height: 72)
-                    .background(
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.84))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .stroke(Color.white.opacity(0.22), lineWidth: 1)
-                    )
-
-                    HStack(spacing: 10) {
-                        frameBadge(title: "ON", value: "120")
-                        frameBadge(title: "OFF", value: "80")
-                        frameBadge(title: "MAX", value: isHighRefreshEnabled ? "120" : "80")
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(frameTick > 0 ? "\(frameTick)" : "—")
+                                .font(.system(size: 76, weight: .light, design: .rounded)).monospacedDigit()
+                                .accessibilityIdentifier("stra.motion.fps")
+                            Text("FPS").font(.headline).foregroundStyle(.secondary)
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 5) {
+                                Text(L10n.text("屏幕上限", "Display limit")).font(.caption).foregroundStyle(.secondary)
+                                Text("\(UIScreen.main.maximumFramesPerSecond) Hz").font(.headline)
+                            }
+                        }
+                        Text(L10n.text("本页显示回调频率 · 不代表其他 App 帧率", "This page’s callback rate · not other apps’ FPS"))
+                            .font(.caption).foregroundStyle(.secondary)
+                        Picker(L10n.text("刷新模式", "Refresh mode"), selection: forceRefreshBinding) {
+                            Text(L10n.text("系统自适应", "Adaptive")).tag(false)
+                            Text(L10n.text("请求高刷", "High refresh")).tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                        .accessibilityIdentifier("stra.motion.mode")
+                        Text(L10n.text("模式同时影响应用与悬浮窗，实际刷新由系统决定。", "Mode also affects PiP. iOS determines the actual refresh rate."))
+                            .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     }
+                    .padding(22)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28))
+
+                    VStack(alignment: .leading, spacing: 18) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(L10n.text("动态体验", "Motion preview")).font(.title3.weight(.semibold))
+                                Text(L10n.text("切换模式，观察移动的连续性", "Switch modes to compare motion"))
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button { isPlaying.toggle() } label: {
+                                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                                    .frame(width: 48, height: 48)
+                            }
+                            .buttonStyle(.bordered).clipShape(Circle())
+                            .accessibilityLabel(isPlaying ? L10n.text("暂停演示", "Pause preview") : L10n.text("播放演示", "Play preview"))
+                            .accessibilityIdentifier("stra.motion.play")
+                        }
+                        TimelineView(.animation(minimumInterval: 1.0 / 120, paused: !isPlaying || !isVisible || scenePhase != .active || reduceMotion)) { context in
+                            GeometryReader { geometry in
+                                let phase = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3) / 3
+                                let travel = max(0, geometry.size.width - 48)
+                                ZStack(alignment: .leading) {
+                                    HStack {
+                                        ForEach(0..<15, id: \.self) { _ in
+                                            Capsule().fill(Color.primary.opacity(0.08)).frame(width: 2, height: 74)
+                                            Spacer(minLength: 0)
+                                        }
+                                    }
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(LinearGradient(colors: [.cyan, .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                        .frame(width: 48, height: 48)
+                                        .offset(x: reduceMotion ? travel / 2 : travel * CGFloat((1 - cos(phase * 2 * .pi)) / 2))
+                                }.frame(maxHeight: .infinity)
+                            }
+                        }.frame(height: 110)
+                        if reduceMotion {
+                            Text(L10n.text("已遵循系统“减弱动态效果”设置", "Reduce Motion is enabled"))
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(22)
+                    .background(Color.cyan.opacity(0.07), in: RoundedRectangle(cornerRadius: 28))
+
+                    HStack {
+                        Text(L10n.text("滑动体验", "Scroll test")).font(.title3.weight(.semibold))
+                        Spacer()
+                        Image(systemName: "arrow.up.arrow.down").foregroundStyle(.secondary)
+                    }
+                    LazyVStack(spacing: 0) {
+                        ForEach(0..<18, id: \.self) { index in
+                            HStack(spacing: 20) {
+                                Text(String(format: "%02d", index + 1))
+                                    .font(.title2.weight(.light).monospacedDigit()).foregroundStyle(.secondary)
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Capsule().fill(Color.primary.opacity(0.16)).frame(width: index % 2 == 0 ? 140 : 100, height: 7)
+                                    Capsule().fill(Color.primary.opacity(0.06)).frame(height: 6)
+                                }
+                                Image(systemName: "sparkle").foregroundStyle(index % 2 == 0 ? Color.cyan : Color.blue)
+                            }.padding(.vertical, 24)
+                            Divider()
+                        }
+                    }
+                    .accessibilityLabel(L10n.text("上下滑动比较流畅度", "Scroll to compare smoothness"))
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 10)
-
-                RootFrameRateListView(
-                    contentPrefix: L10n.frameRateDemo,
-                    targetFrameRate: isHighRefreshEnabled ? 120 : 80,
-                    onScrollActivityChange: { isScrollActive = $0 }
-                )
+                .padding(.horizontal, 24).padding(.top, 20).padding(.bottom, 32)
+                .frame(maxWidth: 600).frame(maxWidth: .infinity)
             }
         }
-        .background(
-            FrameRateDriverView(
-                frameTick: $frameTick,
-                targetFrameRate: isHighRefreshEnabled ? 120 : (isScrollActive ? 80 : 60)
-            )
-        )
+        .background {
+            if isVisible {
+                FrameRateDriverView(frameTick: $frameTick, targetFrameRate: isHighRefreshEnabled ? UIScreen.main.maximumFramesPerSecond : 80)
+            }
+        }
+        .onAppear { isVisible = true }
+        .onDisappear { isVisible = false; isPlaying = false; frameTick = 0 }
+        .onChange(of: scenePhase) { phase in
+            if phase != .active { isPlaying = false; frameTick = 0 }
+        }
     }
 
     private var forceRefreshBinding: Binding<Bool> {
-        Binding(
-            get: { isHighRefreshEnabled },
-            set: { newValue in
-                DiagnosticsRuntimeState.recordUserAction(newValue ? "强制本页面120Hz开启" : "强制本页面120Hz关闭")
-                UserDefaults.standard.set(newValue, forKey: FrameRatePreference.force120HzKey)
-                isHighRefreshEnabled = newValue
-                NotificationCenter.default.post(name: FrameRatePreference.didChangeNotification, object: nil)
-            }
-        )
-    }
-
-    private func frameBadge(title: String, value: String) -> some View {
-        VStack(spacing: 3) {
-            Text(title)
-                .font(.system(size: 11, weight: .black))
-                .foregroundColor(Color(UIColor.secondaryLabel))
-
-            Text("\(value)Hz")
-                .font(.system(size: 16, weight: .black, design: .rounded))
-                .foregroundColor(Color(UIColor.label))
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 54)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(UIColor.tertiarySystemGroupedBackground))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color(UIColor.separator).opacity(0.28), lineWidth: 1)
-        )
+        Binding(get: { isHighRefreshEnabled }, set: { value in
+            isHighRefreshEnabled = value
+            frameTick = 0
+            UISelectionFeedbackGenerator().selectionChanged()
+            NotificationCenter.default.post(name: FrameRatePreference.didChangeNotification, object: nil)
+        })
     }
 }
 
@@ -795,7 +824,7 @@ private struct FrameRateDriverView: UIViewRepresentable {
         }
     }
 
-    func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
+    static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
         NotificationCenter.default.removeObserver(coordinator)
         coordinator.displayLink?.invalidate()
         coordinator.displayLink = nil
@@ -817,7 +846,7 @@ private struct FrameRateDriverView: UIViewRepresentable {
             displayLink.preferredFrameRateRange = CAFrameRateRange(
                 minimum: 30,
                 maximum: target,
-                preferred: target
+                preferred: FrameRatePreference.isHighRefreshEnabled ? target : 0
             )
         } else {
             displayLink.preferredFramesPerSecond = targetFramesPerSecond
@@ -828,6 +857,8 @@ private struct FrameRateDriverView: UIViewRepresentable {
         var displayLink: CADisplayLink?
         private var frameTick: Binding<Int>
         private var didInstallObservers = false
+        private var measurementStart: CFTimeInterval = 0
+        private var measurementFrames = 0
 
         init(frameTick: Binding<Int>) {
             self.frameTick = frameTick
@@ -844,6 +875,7 @@ private struct FrameRateDriverView: UIViewRepresentable {
 
         @objc func updatePausedState() {
             displayLink?.isPaused = UIApplication.shared.applicationState != .active
+            if displayLink?.isPaused == true { measurementStart = 0; measurementFrames = 0 }
         }
 
         @objc func step() {
@@ -851,7 +883,14 @@ private struct FrameRateDriverView: UIViewRepresentable {
                 displayLink?.isPaused = true
                 return
             }
-            frameTick.wrappedValue &+= 1
+            guard let link = displayLink else { return }
+            if measurementStart == 0 { measurementStart = link.timestamp; return }
+            measurementFrames += 1
+            let elapsed = link.timestamp - measurementStart
+            guard elapsed >= 0.5 else { return }
+            frameTick.wrappedValue = Int((Double(measurementFrames) / elapsed).rounded())
+            measurementStart = link.timestamp
+            measurementFrames = 0
         }
     }
 }
