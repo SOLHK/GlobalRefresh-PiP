@@ -6,7 +6,7 @@ on:
     paths:
       - 'pip_swift/**'
       - 'ci/**'
-      - '.github/workflows/build-optimized.yml'
+      - '.github/workflows/**'
 permissions:
   contents: read
 jobs:
