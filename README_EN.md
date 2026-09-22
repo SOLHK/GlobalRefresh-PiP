@@ -2,13 +2,13 @@
   <img src="assets/app-icon.png" alt="Global Refresh PiP icon" width="96" height="96">
 </p>
 
-# Global Refresh PiP
+# STRA Refresh · STRA Refresh
 
 <h3>
   <a href="README.md">Simplified Chinese</a> | English | <a href="DEVELOPMENT_PRD.md">开发文档 PRD</a> | <a href="DEVELOPMENT_PRD_EN.md">Development Document PRD</a>
 </h3>
 
-> An experimental iOS Picture-in-Picture overlay for ProMotion behavior, custom PiP sizing, and background keep-alive testing.
+> Starting with version 2.0.0, STRA Refresh is independently maintained by [SOLHK](https://github.com/SOLHK/GlobalRefresh-PiP), with upstream open-source attribution preserved.
 
 GlobalRefresh PiP explores a practical iOS behavior: on some ProMotion iPhones, certain apps or system scenes may fall back to around 80 Hz even though the hardware can refresh at 120 Hz. A tiny docked Picture-in-Picture window can sometimes keep iOS in a higher-refresh scheduling path, improving scrolling and animation smoothness in those scenes.
 
@@ -16,7 +16,7 @@ The project is also useful as a reference for developers who want to build a cus
 
 ## Overview
 
-This project continues development on top of the original PiP sample by CaiWanFeng. The current version is maintained by Yoroin and focuses on:
+This edition builds on CaiWanFeng's original PiP sample and Yoroin's GlobalRefresh-PiP work. STRA Refresh 2.0.0 and later are independently maintained by SOLHK. Upstream attributions remain in NOTICE. The project focuses on:
 
 - custom-height iOS Picture-in-Picture overlays
 - near-invisible docked PiP windows

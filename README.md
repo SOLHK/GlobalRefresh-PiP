@@ -2,13 +2,13 @@
   <img src="assets/app-icon.png" alt="全局高刷悬浮窗图标" width="96" height="96">
 </p>
 
-# 全局高刷悬浮窗
+# STRA Refresh · STRA Refresh
 
 <h3>
   简体中文 | <a href="README_EN.md">English</a> | <a href="DEVELOPMENT_PRD.md">开发文档 PRD</a> | <a href="DEVELOPMENT_PRD_EN.md">Development Document PRD</a>
 </h3>
 
-> 基于 [CaiWanFeng/PiP](https://github.com/CaiWanFeng/PiP) 修改的个人学习与测试版本。
+> STRA Refresh 2.0.0 起由 [SOLHK](https://github.com/SOLHK/GlobalRefresh-PiP) 独立维护；原始项目及后续贡献者的开源署名保留。
 
 全局高刷通过系统画中画悬浮窗辅助部分 iOS App 恢复更高的自适应刷新率表现1-120Hz。将悬浮窗拖动并吸附到屏幕侧边后，可用于改善部分被限制在 1-80Hz 的场景体验。
 
@@ -16,7 +16,7 @@
 
 ## 说明
 
-本项目是在原版 PiP 示例基础上继续开发的修改版，原作者为 CaiWanFeng。当前版本由 Yoroin 完善，主要增加了后台保活、悬浮窗高度调节（可完全隐藏悬浮窗）、iOS 26 液态玻璃 UI 适配、低版本 iOS 兼容处理和调试日志功能。
+本项目基于 CaiWanFeng 的 PiP 示例与 Yoroin 的 GlobalRefresh-PiP 继续开发。STRA Refresh 2.0.0 由 SOLHK 独立维护，延续画中画与刷新率实验功能，并持续调整锁屏节能、过热恢复及界面布局。原始作者与贡献者的开源署名详见 NOTICE。
 
 请注意：
 

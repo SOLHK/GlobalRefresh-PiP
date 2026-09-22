@@ -769,14 +769,9 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         setupSwiftUI()
         lastObservedSystemAppearance = currentSystemAppearance
         startSystemAppearanceFollowTimerIfNeeded()
+        // Show genuine interruption warnings, not a second queued info popup.
         if let keepAliveInterruptionNotice {
             KeepAliveNotificationTester.presentLaunchInterruptionAlert(keepAliveInterruptionNotice, from: self)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                guard let self else { return }
-                KeepAliveNotificationTester.presentPendingLocalNotificationAlertIfNeeded(from: self)
-            }
-        } else {
-            KeepAliveNotificationTester.presentPendingLocalNotificationAlertIfNeeded(from: self)
         }
 
         NotificationCenter.default.addObserver(self, selector: #selector(handleEnterForeground), name: UIApplication.willEnterForegroundNotification, object: nil)
@@ -799,7 +794,6 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         }
         DiagnosticsRuntimeState.updateCurrentPage("悬浮窗")
         updateDiagnosticsPiPState()
-        enableDefaultPiPStoppedNotificationAfterLaunchCelebrationIfNeeded()
     }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
@@ -1030,10 +1024,9 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         KeepAliveNotificationTester.cancelBackgroundProbeNotifications(reason: "后台中断通知已停用")
         isBackgroundInterruptionNotificationEnabled = false
         keepAliveNotificationFrequency = KeepAliveNotificationTester.probeFrequency
-        keepsPiPStatusInfoPersistent = UserDefaults.standard.object(forKey: userDefaultsPiPStatusInfoPersistentKey) == nil
-            ? true
-            : UserDefaults.standard.bool(forKey: userDefaultsPiPStatusInfoPersistentKey)
-        isPiPStatusInfoVisible = keepsPiPStatusInfoPersistent
+        // Status is already in the new dashboard; extra detail appears only when tapped.
+        keepsPiPStatusInfoPersistent = UserDefaults.standard.bool(forKey: userDefaultsPiPStatusInfoPersistentKey)
+        isPiPStatusInfoVisible = false
         if let storedRoute = UserDefaults.standard.string(forKey: userDefaultsPiPEngineRouteKey) {
             switch storedRoute {
             case PiPEngineRoute.videoCall.rawValue:
@@ -1416,7 +1409,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         let message = isEnabled
             ? L10n.text("已开启极限静默模式，并切换为新方案。请重新打开悬浮窗测试。", "Extreme silent mode is on and the new route is active. Reopen PiP to test.")
             : L10n.text("已关闭极限静默模式", "Extreme silent mode is off.")
-        showMessage(message)
+        AppDebugLogger.log(message)
     }
 
     private func setContentExtremeModeEnabled(_ isEnabled: Bool) {
@@ -1432,7 +1425,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         let message = isEnabled
             ? L10n.text("已开启内容极限模式，请重新打开悬浮窗测试", "Content extreme mode is on. Reopen PiP to test.")
             : L10n.text("已关闭内容极限模式", "Content extreme mode is off.")
-        showMessage(message)
+        AppDebugLogger.log(message)
     }
 
     private func applyExtremeSilentModeIfNeeded(reason: String) {
@@ -2170,9 +2163,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         shouldHidePiPAfterShortcutStart = false
         cancelDelayedPiPHideCountdown(reason: "\(source)\(actionTitle)")
         commitPiPHeight(currentMinimumPiPHeight)
-        showMessage(shouldUsePlayerLayerPiPCompatibility
-            ? L10n.text("已调整到1pt", "Set to 1 pt.")
-            : L10n.text("已调整到0.1pt", "Set to 0.1 pt."))
+        // Success is reflected by the live height tile; no blocking OK dialog.
     }
 
     private func startPiPFromShortcut(shouldHideAfterStart: Bool) {

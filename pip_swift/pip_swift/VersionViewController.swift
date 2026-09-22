@@ -52,14 +52,14 @@ enum AppUpdateChecker {
     }
 
     // This independently maintained edition must never offer the upstream author's builds as its own updates.
-    private static let updateRepository = "SOLHK/GlobalRefresh-PiP"
+    private static let updateRepository = STRAProject.repository
     private static let latestReleaseAPI = URL(
         string: "https://api.github.com/repos/\(updateRepository)/releases/latest"
     )!
     private static let allReleasesAPI = URL(
         string: "https://api.github.com/repos/\(updateRepository)/releases?per_page=30"
     )!
-    private static let githubReleasesURL = URL(string: "https://github.com/\(updateRepository)/releases")!
+    private static let githubReleasesURL = STRAProject.releasesURL
     private static let updateSession: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.urlCache = nil
@@ -683,6 +683,40 @@ struct AppChangelogSection {
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
         AppChangelogSection(
+            version: L10n.text("2.0.2 STRA Refresh · 一体式控制与通透玻璃（26.9.22）", "2.0.2 STRA Refresh · Unified Controls & Clear Glass (2026.9.22)"),
+            items: [
+                L10n.text("开启悬浮窗与一键最小化合并为同一主按钮，开启后自动切换；关闭入口移动到运行状态卡片", "Start and minimize share the same primary button; Stop moves into the session card."),
+                L10n.text("删除首页高度调节入口，优化主按钮尺寸、状态排版与浮层可触达性", "Remove the home height editor and improve primary-action, status and overlay layouts."),
+                L10n.text("降低玻璃叠色与底色不透明度，保留 iOS 26/27 原生 Liquid Glass；当前最低为0.1pt（PlayerLayer 1pt）", "Reduce opaque tints for native iOS 26/27 Liquid Glass; minimum remains 0.1 pt (PlayerLayer 1 pt).")
+            ]
+        )
+    }
+
+    static var version201: AppChangelogSection {
+        AppChangelogSection(
+            version: L10n.text("2.0.1 STRA Refresh · 控制台重新设计（26.9.22）", "2.0.1 STRA Refresh · New Control Room (2026.9.22)"),
+            items: [
+                L10n.text("顶部启动/关闭主按钮，下方双列最小化/高度与样式/指南操作", "Move Start/Stop to the top, followed by two-column minimize, height, style and guide controls."),
+                L10n.text("取消自动更新日志与通知授权弹窗；最小化成功不再要求点确定，关键异常提示保留", "No auto changelog or notification permission prompt; minimizing no longer opens a success dialog. Critical warnings remain."),
+                L10n.text("默认方案实际最低为0.1pt，PlayerLayer方案1pt，不冒称0.01pt已受支持", "Actual minimum remains 0.1 pt (1 pt for PlayerLayer); no unverified 0.01 pt claim.")
+            ]
+        )
+    }
+
+    static var version200: AppChangelogSection {
+        AppChangelogSection(
+            version: L10n.text("2.0.0 STRA Refresh · 全新独立版（26.9.22）", "2.0.0 STRA Refresh · Independent Edition (2026.9.22)"),
+            items: [
+                L10n.text("正式启用 STRA Refresh 品牌和 2.0.0 版本序列，安装包名称与中英文桌面名称统一", "Launch STRA Refresh branding and the 2.0.0 series, with consistent IPA and localized display names."),
+                L10n.text("首页控制区重新分行，版本页改为可滚动自适应布局，处理窄屏与文字错位", "Separate Home header controls and use a scrollable adaptive About layout to prevent cramped or overlapping controls."),
+                L10n.text("版本页增加 SOLHK 项目链接，GitHub 图标及更新入口仅指向独立仓库", "Add the SOLHK repository to About; direct the GitHub icon and update links to the independent project."),
+                L10n.text("保留上一版画中画、锁屏节能与温度保护实现；实际全局帧率仍需真机验证", "Preserve the previous PiP, lock savings and thermal protections; real third-party FPS still requires device testing.")
+            ]
+        )
+    }
+
+    static var version111beta9: AppChangelogSection {
+        AppChangelogSection(
             version: L10n.text("1.1.1-beta9 STRA 自动恢复与低开销显示（26.9.22）", "1.1.1-beta9 STRA Recovery and Display Efficiency (2026.9.22)"),
             items: [
                 L10n.text("时钟文字与网速显示最多每秒更新10次，保留高刷驱动和帧率采样", "Limit clock and network display work to 10 updates/sec while preserving refresh requests and FPS sampling."),
@@ -816,7 +850,7 @@ final class LatestChangelogViewController: UIViewController {
             glassView = UIVisualEffectView(effect: effect)
         } else {
             glassView = UIVisualEffectView(effect: UIBlurEffect(style: .systemMaterial))
-            glassView.contentView.backgroundColor = UIColor.secondarySystemBackground.withAlphaComponent(0.42)
+            glassView.contentView.backgroundColor = UIColor.secondarySystemBackground.withAlphaComponent(0.12)
         }
         glassView.layer.cornerRadius = 30
         glassView.layer.cornerCurve = .continuous
@@ -934,6 +968,9 @@ final class ChangelogViewController: UIViewController {
 
         let stackView = UIStackView(arrangedSubviews: [
             makeSection(section: AppChangelogCatalog.latest),
+            makeSection(section: AppChangelogCatalog.version201),
+            makeSection(section: AppChangelogCatalog.version200),
+            makeSection(section: AppChangelogCatalog.version111beta9),
             makeSection(section: AppChangelogCatalog.version111beta8),
             makeSection(section: AppChangelogCatalog.version111beta6),
             makeSection(section: AppChangelogCatalog.version111beta5),
@@ -1218,7 +1255,7 @@ private final class UpdateAvailableViewController: UIViewController {
             glassView = UIVisualEffectView(effect: effect)
         } else {
             glassView = UIVisualEffectView(effect: UIBlurEffect(style: .systemMaterial))
-            glassView.contentView.backgroundColor = UIColor.secondarySystemBackground.withAlphaComponent(0.42)
+            glassView.contentView.backgroundColor = UIColor.secondarySystemBackground.withAlphaComponent(0.12)
         }
         glassView.layer.cornerRadius = cornerRadius
         glassView.layer.cornerCurve = .continuous
@@ -1287,7 +1324,7 @@ private final class UpdateStatusViewController: UIViewController {
             glassView = UIVisualEffectView(effect: effect)
         } else {
             glassView = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterial))
-            glassView.contentView.backgroundColor = UIColor.systemGroupedBackground.withAlphaComponent(0.42)
+            glassView.contentView.backgroundColor = UIColor.systemGroupedBackground.withAlphaComponent(0.12)
         }
         glassView.layer.cornerRadius = cornerRadius
         glassView.layer.cornerCurve = .continuous

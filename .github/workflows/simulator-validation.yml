@@ -2,13 +2,13 @@ name: iPhone simulator validation
 on:
   workflow_dispatch:
   push:
-    branches: [codex/power-saving-beta2, codex/stra-beta9]
-    paths: ['pip_swift/**', 'ci/**', '.github/workflows/simulator-validation.yml']
+    branches: [codex/power-saving-beta2, codex/stra-beta9, codex/stra-2.0]
+    paths: ['pip_swift/**', 'ci/**', '.github/workflows/**']
 permissions:
   contents: read
 jobs:
   simulator:
-    runs-on: macos-latest
+    runs-on: xcode-27
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -20,7 +20,18 @@ jobs:
           ruby ci/configure-simulator-tests.rb
       - name: Select and boot an available iPhone
         run: |
+          set -euo pipefail
+          XCODE27=""
+          for candidate in /Applications/Xcode*.app; do
+            [ -d "$candidate" ] || continue
+            build=$(/usr/libexec/PlistBuddy -c "Print :ProductBuildVersion" "$candidate/Contents/version.plist" 2>/dev/null || true)
+            if [ "$build" = "27A266a" ]; then XCODE27="$candidate"; break; fi
+          done
+          if [ -z "$XCODE27" ]; then echo "::error::Released Xcode 27 (27A266a) unavailable"; exit 1; fi
+          echo "DEVELOPER_DIR=$XCODE27/Contents/Developer" >> "$GITHUB_ENV"
+          export DEVELOPER_DIR="$XCODE27/Contents/Developer"
           xcodebuild -version
+          test "$(xcodebuild -version | head -n 1)" = "Xcode 27.0"
           xcrun simctl list devices available -j > /tmp/simulators.json
           DEVICE_ID=$(python3 - <<'PY'
           import json

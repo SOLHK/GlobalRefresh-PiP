@@ -65,23 +65,50 @@ private struct AdaptiveLayoutMetrics {
 
 // STRA visual identity. Purely static gradients: no animation or background timer.
 private enum STRAStyle {
-    static let accent = Color(red: 0.10, green: 0.68, blue: 0.94)
-    static let secondary = Color(red: 0.43, green: 0.38, blue: 0.95)
+    static let accent = Color(red: 0.02, green: 0.70, blue: 0.75)
+    static let secondary = Color(red: 0.27, green: 0.46, blue: 0.93)
+
+    // System Liquid Glass on iOS 26/27, system material on older iOS.
+    // No timer, bitmap blur or custom glass simulation.
+    static func glassSurface(cornerRadius: CGFloat = 24, tint: Color = .clear) -> AnyView {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        if #available(iOS 26.0, *) {
+            return AnyView(
+                shape
+                    .fill(tint.opacity(0.018))
+                    .glassEffect(.regular, in: shape)
+                    .overlay(shape.strokeBorder(
+                        Color.white.opacity(0.17), lineWidth: 0.65
+                    ))
+            )
+        }
+        return AnyView(
+            shape
+                .fill(.ultraThinMaterial)
+                .overlay(shape.fill(tint.opacity(0.025)))
+                .overlay(shape.strokeBorder(Color(UIColor.separator).opacity(0.18), lineWidth: 0.65))
+        )
+    }
 
     static var canvas: some View {
         ZStack {
-            Color(UIColor.systemGroupedBackground)
+            Color(UIColor.systemBackground)
             RadialGradient(
-                colors: [accent.opacity(0.14), .clear],
-                center: .topLeading,
-                startRadius: 16,
-                endRadius: 380
+                colors: [accent.opacity(0.28), .clear],
+                center: .topTrailing,
+                startRadius: 0,
+                endRadius: 460
             )
             RadialGradient(
-                colors: [secondary.opacity(0.10), .clear],
-                center: .bottomTrailing,
+                colors: [secondary.opacity(0.19), .clear],
+                center: .bottomLeading,
                 startRadius: 0,
-                endRadius: 360
+                endRadius: 530
+            )
+            LinearGradient(
+                colors: [Color.white.opacity(0.07), .clear, accent.opacity(0.045)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
         }
         .ignoresSafeArea()
@@ -130,6 +157,7 @@ struct PageHeaderTitle: View {
 }
 
 struct PiPHomeView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var isPiPActive: Bool
     @Binding var isPiPStatusInfoVisible: Bool
     @State private var isSettingsVisible = false
@@ -208,52 +236,60 @@ struct PiPHomeView: View {
                     dismissSettingsIfNeeded()
                 }
 
-	            VStack(alignment: .leading, spacing: layout.homeOuterSpacing) {
-	                homeHeader
-
-	                VStack(spacing: layout.homeActionSpacing) {
-                    ActionButton(title: L10n.text("使用教程", "Tutorial"), systemImage: "book") {
-                        runAfterDismissingSettings(onShowTutorial)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: layout.isCompact ? 15 : 22) {
+                    homeHeader
+                    VStack(alignment: .leading, spacing: layout.isCompact ? 12 : 16) {
+                        HStack {
+                            Text(L10n.text("快捷控制", "QUICK CONTROL"))
+                                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                                .tracking(2.4)
+                                .foregroundColor(Color(UIColor.secondaryLabel))
+                            Spacer(minLength: 0)
+                            Circle()
+                                .fill(isPiPActive ? STRAStyle.accent : Color(UIColor.tertiaryLabel))
+                                .frame(width: 7, height: 7)
+                                .scaleEffect(isPiPActive && !reduceMotion ? 1.18 : 1)
+                            Text(isPiPActive ? L10n.text("已连接", "LIVE") : L10n.text("待机", "STANDBY"))
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .foregroundColor(Color(UIColor.secondaryLabel))
+                        }
+                        .padding(.horizontal, 3)
+                        PrimaryPiPButton(
+                            title: isPiPActive ? startAndHidePiPButtonTitle : L10n.text("开启悬浮窗", "Start Floating Window"),
+                            subtitle: isPiPActive
+                                ? L10n.text("吸附到侧边后，一键收起", "Dock to the edge, then minimize")
+                                : L10n.text("启动画中画 · 开启刷新", "Launch PiP · Enable refresh"),
+                            isActive: isPiPActive
+                        ) {
+                            runAfterDismissingSettings(isPiPActive ? onStartAndHidePiP : onTogglePiP)
+                        }
+                        HStack(spacing: 7) {
+                            Image(systemName: isPiPActive ? "hand.draw" : "sparkles")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(STRAStyle.accent)
+                            Text(isPiPActive
+                                 ? L10n.text("先拖到屏幕边缘吸附，再点主按钮隐藏", "Dock PiP to the edge before minimizing")
+                                 : L10n.text("启动后主按钮自动切换为一键隐藏", "The button switches to minimize after launch"))
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(Color(UIColor.secondaryLabel))
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 6)
+                        .accessibilityIdentifier("stra.primaryPiP.hint")
                     }
-                    ActionButton(title: L10n.text("修改悬浮窗样式", "Change Floating Style"), systemImage: "rectangle.compress.vertical") {
-                        runAfterDismissingSettings(onToggleStyle)
-                    }
-                    ActionButton(title: L10n.text("自定义悬浮窗高度", "Custom PiP Height"), systemImage: "arrow.up.and.down", detail: pipHeight) {
-                        runAfterDismissingSettings(onCustomizeHeight)
-                    }
-
                     pipStatusRow
                 }
-                .padding(.horizontal, layout.homeActionHorizontalPadding)
-
-                Spacer(minLength: layout.isCompact ? 8 : 18)
-
-                VStack(spacing: layout.isCompact ? 9 : 12) {
-                    StartAndHidePiPButton(title: startAndHidePiPButtonTitle) {
-                        runAfterDismissingSettings(onStartAndHidePiP)
-                    }
-                    .offset(y: -5)
-
-                    PrimaryPiPButton(title: isPiPActive ? L10n.text("关闭悬浮窗", "Stop PiP") : L10n.text("开启悬浮窗", "Enable PiP")) {
-                        runAfterDismissingSettings(onTogglePiP)
-                    }
-                }
-                    .frame(maxWidth: 286)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .offset(y: -5)
-                    .padding(.horizontal, layout.homePrimaryHorizontalPadding)
-                    .padding(.bottom, layout.homePrimaryBottomPadding)
+                .padding(.horizontal, layout.isNarrow ? 16 : 22)
+                .padding(.top, layout.isCompact ? 14 : 22)
+                .padding(.bottom, layout.isCompact ? 18 : 32)
+                .frame(maxWidth: 500)
+                .frame(maxWidth: .infinity)
+                .animation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.84), value: isPiPActive)
             }
-            .padding(.horizontal, layout.homeContainerHorizontalPadding)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                dismissKeepAliveInfoIfNeeded()
-                dismissPiPStatusInfoIfNeededRespectingPersistence()
-                dismissNotificationFrequencyInfoIfNeeded()
-                dismissPiPStoppedNotificationInfoIfNeeded()
-                dismissEngineRouteInfoIfNeeded()
-                dismissSettingsIfNeeded()
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             keepAliveInfoPopover
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -299,15 +335,22 @@ struct PiPHomeView: View {
                     .zIndex(9)
             }
 
-            settingsPopover
-                .padding(.top, layout.homeSettingsTop)
-                .padding(.trailing, layout.homeSettingsTrailing)
-                .opacity(isSettingsVisible ? 1 : 0)
-                .scaleEffect(isSettingsVisible ? 1 : 0.985, anchor: .topTrailing)
-                .blur(radius: isSettingsVisible ? 0 : 6)
-                .allowsHitTesting(isSettingsVisible)
-                .accessibilityHidden(!isSettingsVisible)
-                .zIndex(10)
+            if isSettingsVisible {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .padding(.top, layout.homeSettingsTop)
+                    .onTapGesture { dismissSettingsIfNeeded() }
+                    .zIndex(8)
+                    .accessibilityIdentifier("stra.home.settingsBackdrop")
+            }
+
+            if isSettingsVisible {
+                settingsPopover
+                    .padding(.top, layout.homeSettingsTop)
+                    .padding(.trailing, layout.homeSettingsTrailing)
+                    .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topTrailing)))
+                    .zIndex(10)
+            }
         }
         .onAppear {
             isSettingsVisible = isSettingsExpanded
@@ -349,89 +392,79 @@ struct PiPHomeView: View {
     }
 
     private var homeHeader: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            STRAStyle.editionMark
-                .padding(.bottom, 1)
-
-            HStack(alignment: .center) {
-                Text(L10n.text("STRA 高刷控制台", "STRA Refresh Console"))
-                    .font(.system(size: layout.headerTitleSize, weight: .black, design: .rounded))
-                    .foregroundColor(Color(UIColor.label))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
-                    .layoutPriority(1)
-
-                Spacer(minLength: 8)
-
-                HStack(spacing: 8) {
-                    Button {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        dismissKeepAliveInfoIfNeeded()
-                        dismissPiPStatusInfoIfNeededRespectingPersistence()
-                        dismissNotificationFrequencyInfoIfNeeded()
-                        dismissPiPStoppedNotificationInfoIfNeeded()
-                        dismissEngineRouteInfoIfNeeded()
-                        dismissSettingsIfNeeded()
-                        onToggleAppearanceMode()
-                    } label: {
-                        AppearanceModeButton(
-                            isDarkModeForced: isDarkModeForced,
-                            isCurrentAppearanceDark: isCurrentAppearanceDark
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    Button {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        dismissKeepAliveInfoIfNeeded()
-                        dismissPiPStatusInfoIfNeededRespectingPersistence()
-                        dismissNotificationFrequencyInfoIfNeeded()
-                        onToggleSettings()
-                    } label: {
-                        SettingsGearButton(title: L10n.text("更多设置", "More"), isExpanded: isSettingsVisible)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-
-            HStack(spacing: 7) {
-                Text(L10n.text("当前保活模式", "Keep-alive mode"))
-                    .font(.system(size: 14, weight: .semibold))
+        VStack(alignment: .leading, spacing: 13) {
+            HStack(spacing: 9) {
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(STRAStyle.accent)
+                    .frame(width: 8, height: 24)
+                Text("STRA")
+                    .font(.system(size: 13, weight: .black, design: .rounded))
+                    .tracking(2.4)
+                Text(" / REFRESH")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .foregroundColor(Color(UIColor.secondaryLabel))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.82)
-                    .fixedSize(horizontal: true, vertical: false)
-
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 0)
                 Button {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     dismissSettingsIfNeeded()
-                    withAnimation(.interpolatingSpring(mass: 0.45, stiffness: 420, damping: 36, initialVelocity: 0.12)) {
-                        isKeepAliveInfoVisible.toggle()
-                    }
+                    onToggleAppearanceMode()
                 } label: {
-                    HStack(spacing: 4) {
-                        Text(keepAliveMode)
-                            .font(.system(size: 13, weight: .bold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.74)
-                        Image(systemName: "questionmark.circle.fill")
-                            .font(.system(size: 12, weight: .bold))
-                    }
-                    .foregroundColor(Color(UIColor.systemBlue))
-                    .padding(.leading, 10)
-                    .padding(.trailing, 8)
-                    .frame(height: 26)
-                    .background(keepAliveModeBadgeBackground)
+                    AppearanceModeButton(
+                        isDarkModeForced: isDarkModeForced,
+                        isCurrentAppearanceDark: isCurrentAppearanceDark
+                    )
                 }
                 .buttonStyle(.plain)
-                .layoutPriority(1)
-
-                Spacer(minLength: 0)
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    dismissKeepAliveInfoIfNeeded()
+                    dismissPiPStatusInfoIfNeededRespectingPersistence()
+                    onToggleSettings()
+                } label: {
+                    SettingsGearButton(title: layout.isNarrow ? "" : L10n.text("设置", "Settings"), isExpanded: isSettingsVisible)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.text("更多设置", "Settings"))
+                .accessibilityIdentifier("stra.home.openSettings")
             }
+            VStack(alignment: .leading, spacing: 5) {
+                Text(L10n.text("刷新控制台", "Refresh Console"))
+                    .font(.system(size: layout.isNarrow ? 30 : 36, weight: .black, design: .rounded))
+                    .tracking(-1.2)
+                    .foregroundColor(Color(UIColor.label))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.80)
+                    .accessibilityAddTraits(.isHeader)
+                Text(L10n.text("简洁控制 · 按需运行", "Simple controls. Only when you need them."))
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(Color(UIColor.secondaryLabel))
+            }
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                dismissSettingsIfNeeded()
+                withAnimation(.easeOut(duration: 0.16)) {
+                    isKeepAliveInfoVisible.toggle()
+                }
+            } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: "waveform.path")
+                        .foregroundColor(STRAStyle.accent)
+                    Text(keepAliveMode)
+                        .font(.system(size: 12, weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 10, weight: .bold))
+                }
+                .foregroundColor(Color(UIColor.secondaryLabel))
+                .padding(.horizontal, 12)
+                .frame(height: 32)
+                .background(keepAliveModeBadgeBackground)
+            }
+            .buttonStyle(.plain)
         }
-        .padding(.horizontal, layout.headerHorizontalPadding)
-        .padding(.top, layout.headerTopPadding)
-        .padding(.bottom, layout.headerBottomPadding)
     }
 
     private var keepAliveModeBadgeBackground: AnyView {
@@ -439,14 +472,14 @@ struct PiPHomeView: View {
         if #available(iOS 26.0, *) {
             return AnyView(
                 shape
-                    .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.22))
+                    .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.035))
                     .glassEffect(.regular.interactive(), in: shape)
             )
         }
         return AnyView(
             shape
                 .fill(.ultraThinMaterial)
-                .overlay(shape.fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.36)))
+                .overlay(shape.fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.07)))
                 .overlay(shape.strokeBorder(legacyGlassStrokeColor, lineWidth: 1))
         )
     }
@@ -489,7 +522,7 @@ struct PiPHomeView: View {
     private var statusBadgeBackground: some View {
         let shape = Capsule()
         return shape
-            .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.62))
+            .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.12))
             .overlay(
                 shape.strokeBorder(
                     Color(pipStatusColor).opacity(isPiPActive ? 0.28 : 0.16),
@@ -501,7 +534,7 @@ struct PiPHomeView: View {
     private var notificationBadgeBackground: some View {
         let shape = Capsule()
         return shape
-            .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.62))
+            .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.12))
             .overlay(
                 shape.strokeBorder(notificationBadgeColor.opacity(isAnyNotificationEnabled ? 0.24 : 0.18), lineWidth: 1)
             )
@@ -510,7 +543,7 @@ struct PiPHomeView: View {
     private var engineRouteBadgeBackground: some View {
         let shape = Capsule()
         return shape
-            .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.62))
+            .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.12))
             .overlay(
                 shape.strokeBorder(Color(UIColor.systemBlue).opacity(0.2), lineWidth: 1)
             )
@@ -554,26 +587,46 @@ struct PiPHomeView: View {
     }
 
     private var pipStatusRow: some View {
-        Color.clear
-            .frame(height: 30)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .overlay(alignment: .leading) {
-                pipStatusRowContent
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(L10n.text("运行状态", "SESSION STATUS"))
+                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .tracking(2)
+                    .foregroundColor(Color(UIColor.secondaryLabel))
+                Spacer(minLength: 0)
+                pipStatusInfoButton
             }
-    }
-
-    private var pipStatusRowContent: some View {
-        HStack(spacing: 8) {
-            pipStatusTitleLabel
-            pipStatusInfoButton
-            notificationInfoButton
-            engineRouteInfoButton
+            Rectangle()
+                .fill(Color(UIColor.separator).opacity(0.16))
+                .frame(height: 0.5)
+            HStack(spacing: 7) {
+                Image(systemName: "circle.grid.2x2")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(STRAStyle.accent)
+                engineRouteInfoButton
+                notificationInfoButton
+                Spacer(minLength: 0)
+                if isPiPActive {
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        runAfterDismissingSettings(onTogglePiP)
+                    } label: {
+                        Label(L10n.text("关闭", "Stop"), systemImage: "stop.circle.fill")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundColor(Color(UIColor.systemRed))
+                            .padding(.horizontal, 12)
+                            .frame(height: 32)
+                            .background(STRAStyle.glassSurface(cornerRadius: 16, tint: Color(UIColor.systemRed)))
+                    }
+                    .buttonStyle(STRAPressFeedbackStyle())
+                    .accessibilityIdentifier("stra.stopPiP")
+                    .transition(.opacity.combined(with: .scale(scale: 0.88)))
+                }
+            }
         }
-        .fixedSize(horizontal: true, vertical: false)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 4)
-        .padding(.top, 2)
-        .offset(x: isPiPStatusHiddenForLayout ? -10 : 0)
+        .padding(18)
+        .frame(maxWidth: .infinity)
+        .background(STRAStyle.glassSurface(cornerRadius: 25))
     }
 
     private var pipStatusTitleLabel: some View {
@@ -873,9 +926,25 @@ struct PiPHomeView: View {
 
     private var settingsPopover: some View {
         VStack(alignment: .leading, spacing: 7) {
-            Text(L10n.text("高级设置", "Advanced Settings"))
-                .font(.system(size: 18, weight: .black, design: .rounded))
-                .foregroundColor(Color(UIColor.label))
+            HStack {
+                Text(L10n.text("高级设置", "Advanced Settings"))
+                    .font(.system(size: 18, weight: .black, design: .rounded))
+                    .foregroundColor(Color(UIColor.label))
+                Spacer(minLength: 0)
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    dismissSettingsIfNeeded()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Color(UIColor.label))
+                        .frame(width: 34, height: 34)
+                        .background(STRAStyle.glassSurface(cornerRadius: 17))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.text("关闭设置", "Close Settings"))
+                .accessibilityIdentifier("stra.home.closeSettings")
+            }
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 7) {
@@ -1039,28 +1108,12 @@ struct PiPHomeView: View {
         .padding(14)
         .frame(width: layout.homeSettingsPanelWidth)
         .background(settingsPopoverBackground)
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(adaptiveGlassStrokeColor, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .shadow(color: Color.black.opacity(0.16), radius: 18, x: 0, y: 10)
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .shadow(color: Color.black.opacity(0.12), radius: 20, x: 0, y: 10)
     }
 
     private var settingsPopoverBackground: AnyView {
-        let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
-        if #available(iOS 26.0, *) {
-            return AnyView(
-                shape
-                    .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.08))
-                    .glassEffect(.regular.interactive(), in: shape)
-            )
-        }
-        return AnyView(
-            shape
-                .fill(.ultraThinMaterial)
-                .overlay(shape.fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.28)))
-        )
+        STRAStyle.glassSurface(cornerRadius: 26, tint: STRAStyle.accent)
     }
 
     private var rememberHeightBinding: Binding<Bool> {
@@ -1420,7 +1473,7 @@ struct PiPHomeView: View {
         if pipEngineRoute.usesPlayerLayer {
             return L10n.text("一键1pt", "One-tap 1 pt")
         }
-        return L10n.text("一键0.1pt", "One-tap 0.1 pt")
+        return L10n.text("一键0.1pt", "Minimize 0.1 pt")
     }
 }
 
@@ -1734,11 +1787,16 @@ struct VersionPageView: View {
                     .frame(height: 38)
                 }
                 .buttonStyle(GlassCapsuleButtonStyle())
-                .padding(.trailing, 20)
+                .padding(.trailing, layout.headerHorizontalPadding)
             }
+            .frame(maxWidth: 440)
+            .frame(maxWidth: .infinity, alignment: .center)
             .frame(maxHeight: .infinity, alignment: .top)
+            .zIndex(3)
 
-            VStack(spacing: layout.versionMainSpacing) {
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: layout.versionMainSpacing) {
+                VStack(spacing: layout.isCompact ? 14 : 19) {
                 STRAStyle.editionMark
 
                 Text(L10n.appName)
@@ -1857,9 +1915,11 @@ struct VersionPageView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
                 }
-
-                Divider()
-                    .padding(.horizontal, layout.versionDividerPadding)
+                }
+                .padding(.vertical, layout.isCompact ? 18 : 24)
+                .padding(.horizontal, 14)
+                .frame(maxWidth: .infinity)
+                .background(STRAStyle.glassSurface(cornerRadius: 29, tint: STRAStyle.accent))
 
                 VersionDescriptionView(isCompact: layout.isCompact, languageIdentity: languageIdentity)
                     .id("version-description-\(languageIdentity)")
@@ -1871,30 +1931,29 @@ struct VersionPageView: View {
                             )
                         }
                     )
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 10)
+                    .frame(maxWidth: .infinity)
+                    .background(STRAStyle.glassSurface(cornerRadius: 24))
 
-                if !layout.isCompact {
-                    Color.clear
-                        .frame(height: layout.versionReservedControlsHeight)
-                        .padding(.top, layout.versionReservedControlsTopPadding)
-                }
-
-                if !layout.isCompact {
+                versionActions
+                    .padding(.top, 12)
+                if displayedDebugModeEnabled {
                     copyDiagnosticsLogButton
                         .frame(height: layout.versionCopyLogRowHeight)
                     if shouldShowDebugModeStatus {
                         debugStatusLabels
                     }
                 }
+                }
+                .padding(.horizontal, layout.versionHorizontalPadding)
+                .frame(maxWidth: 440)
+                .frame(maxWidth: .infinity)
+                .padding(.top, layout.isCompact ? 74 : 92)
+                .padding(.bottom, 32)
             }
-            .padding(.horizontal, layout.versionHorizontalPadding)
-            .padding(.top, layout.versionContentTopPadding)
-            .frame(maxHeight: .infinity, alignment: .top)
-            .animation(nil, value: displayedDebugModeEnabled)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            fixedFAQButtons
-            if layout.isCompact {
-                fixedCompactDiagnosticsControls
-            }
             fixedDebugPanel
             keepAliveInfoPanel
             if L10n.isBetaBuild {
@@ -2029,9 +2088,7 @@ struct VersionPageView: View {
         dismissKeepAliveInfoPanel()
         dismissBetaInfoPanel()
         dismissDebugPanel()
-        if let url = URL(string: "https://github.com/SOLHK/GlobalRefresh-PiP") {
-            UIApplication.shared.open(url)
-        }
+        UIApplication.shared.open(STRAProject.projectURL)
     }
 
     private var keepAliveModeTitle: String {
@@ -2042,47 +2099,45 @@ struct VersionPageView: View {
         displayedKeepAlivePolicy.detail
     }
 
-    private var fixedFAQButtons: some View {
-        GeometryReader { proxy in
-            HStack(spacing: 10) {
-                Button {
-                    openGitHubLink()
-                } label: {
-                    GitHubLinkIcon()
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    dismissKeepAliveInfoPanel()
-                    dismissDebugPanel()
-                    onShowFAQ()
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "questionmark.circle")
-                            .font(.system(size: 17, weight: .bold))
-                        Text(L10n.faq)
-                            .font(.system(size: 17, weight: .bold))
-                    }
-                    .foregroundColor(Color(UIColor.systemBlue))
-                    .padding(.horizontal, 18)
-                    .frame(height: 46)
-                }
-                .buttonStyle(GlassCapsuleButtonStyle())
-
-                Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    dismissKeepAliveInfoPanel()
-                    toggleDebugPanel()
-                } label: {
-                    DebugModeButton(isExpanded: isDebugPanelVisible)
-                }
-                .buttonStyle(.plain)
+    private var versionActions: some View {
+        HStack(spacing: 10) {
+            Button {
+                openGitHubLink()
+            } label: {
+                GitHubLinkIcon()
             }
-            .frame(height: 46)
-            .position(x: proxy.size.width / 2, y: fixedFAQRowCenterY)
+            .buttonStyle(.plain)
+
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                dismissKeepAliveInfoPanel()
+                dismissDebugPanel()
+                onShowFAQ()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "questionmark.circle")
+                        .font(.system(size: 17, weight: .bold))
+                    Text(L10n.faq)
+                        .font(.system(size: 17, weight: .bold))
+                }
+                .foregroundColor(Color(UIColor.systemBlue))
+                .padding(.horizontal, 18)
+                .frame(height: 46)
+            }
+            .buttonStyle(GlassCapsuleButtonStyle())
+
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                dismissKeepAliveInfoPanel()
+                toggleDebugPanel()
+            } label: {
+                DebugModeButton(isExpanded: isDebugPanelVisible)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("stra.about.openSettings")
         }
-        .zIndex(4)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .frame(height: 46)
     }
 
     private var copyDiagnosticsLogButton: some View {
@@ -2163,30 +2218,6 @@ struct VersionPageView: View {
         debugModeStatusLabel
     }
 
-    private var fixedCopyDiagnosticsLogButton: some View {
-        GeometryReader { proxy in
-            copyDiagnosticsLogButton
-                .frame(height: layout.versionCopyLogRowHeight)
-                .position(x: proxy.size.width / 2, y: fixedFAQRowCenterY - 58)
-        }
-        .zIndex(4.5)
-    }
-
-    private var fixedCompactDiagnosticsControls: some View {
-        GeometryReader { proxy in
-            VStack(spacing: 6) {
-                copyDiagnosticsLogButton
-                    .frame(height: layout.versionCopyLogRowHeight)
-                if shouldShowDebugModeStatus {
-                    debugStatusLabels
-                }
-            }
-            .frame(height: compactDiagnosticsControlsHeight)
-            .position(x: proxy.size.width / 2, y: fixedFAQRowCenterY - compactDiagnosticsControlsYOffset)
-        }
-        .zIndex(4.55)
-    }
-
     private var debugDiagnosticsInfoPanel: some View {
         GeometryReader { proxy in
             debugDiagnosticsInfoPanelContent
@@ -2201,11 +2232,18 @@ struct VersionPageView: View {
         .zIndex(7)
     }
 
+    // The previous full-screen GeometryReader intercepted taps but offered no
+    // dismiss target outside the debug card. A dedicated scrim and X fix that.
     private var fixedDebugPanel: some View {
         GeometryReader { proxy in
             if isDebugPanelVisible || isDebugPanelClosing {
-                VStack(spacing: 0) {
-                    Spacer(minLength: 0)
+                ZStack(alignment: .bottom) {
+                    Color.black.opacity(0.12)
+                        .ignoresSafeArea()
+                        .contentShape(Rectangle())
+                        .onTapGesture { dismissDebugPanel() }
+                        .accessibilityLabel(L10n.text("关闭设置", "Dismiss Preferences"))
+                        .accessibilityIdentifier("stra.about.settingsBackdrop")
 
                     DebugModePanel(
                         isEnabled: displayedDebugModeEnabled,
@@ -2214,27 +2252,22 @@ struct VersionPageView: View {
                         onSetEnabled: setDebugMode,
                         onSetKeepAlivePolicy: setKeepAlivePolicy,
                         onSetBetaUpdateChannelEnabled: onSetBetaUpdateChannelEnabled,
+                        onClose: dismissDebugPanel,
                         isClosing: isDebugPanelClosing
                     )
-                    .padding(.bottom, max(proxy.safeAreaInsets.bottom, 0) + 5)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, max(proxy.safeAreaInsets.bottom, 0) + 12)
+                    .accessibilityIdentifier("stra.about.settingsPanel")
                 }
                 .frame(width: proxy.size.width, height: proxy.size.height, alignment: .bottom)
-                .scaleEffect(isDebugPanelVisible ? 1 : 0.985, anchor: .bottom)
+                .scaleEffect(isDebugPanelVisible ? 1 : 0.97, anchor: .bottom)
                 .opacity(isDebugPanelVisible ? 1 : 0)
                 .allowsHitTesting(isDebugPanelVisible && !isDebugPanelClosing)
-                .transition(
-                    .asymmetric(
-                        insertion: .opacity.combined(with: .scale(scale: 0.985, anchor: .bottom)),
-                        removal: .opacity
-                    )
-                )
-                .animation(
-                    .interpolatingSpring(mass: 0.45, stiffness: 420, damping: 36, initialVelocity: 0.12),
-                    value: isDebugPanelVisible
-                )
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                .animation(.spring(response: 0.3, dampingFraction: 0.85), value: isDebugPanelVisible)
             }
         }
-        .zIndex(5)
+        .zIndex(12)
     }
 
     private var keepAliveInfoPanel: some View {
@@ -2638,7 +2671,7 @@ private struct GitHubLinkIcon: View {
             .scaledToFit()
             .foregroundColor(Color(UIColor.label))
             .frame(width: 25, height: 25)
-        .frame(width: 44, height: 44)
+            .frame(width: 44, height: 44)
         .background(glassBackground(shape: shape))
         .overlay(
             shape.strokeBorder(
@@ -2648,7 +2681,7 @@ private struct GitHubLinkIcon: View {
         )
         .clipShape(Circle())
         .contentShape(Circle())
-        .accessibilityLabel("GitHub")
+        .accessibilityLabel(L10n.text("STRA Refresh GitHub项目", "STRA Refresh GitHub project"))
     }
 
     private func glassBackground(shape: Circle) -> AnyView {
@@ -2714,6 +2747,7 @@ private struct DebugModePanel: View {
     let onSetEnabled: (Bool) -> Void
     let onSetKeepAlivePolicy: (KeepAlivePolicy) -> Void
     let onSetBetaUpdateChannelEnabled: (Bool) -> Void
+    let onClose: () -> Void
     let isClosing: Bool
     @State private var displayedIsEnabled: Bool
     @State private var displayedKeepAlivePolicy: KeepAlivePolicy
@@ -2726,6 +2760,7 @@ private struct DebugModePanel: View {
         onSetEnabled: @escaping (Bool) -> Void,
         onSetKeepAlivePolicy: @escaping (KeepAlivePolicy) -> Void,
         onSetBetaUpdateChannelEnabled: @escaping (Bool) -> Void,
+        onClose: @escaping () -> Void,
         isClosing: Bool = false
     ) {
         self.isEnabled = isEnabled
@@ -2734,6 +2769,7 @@ private struct DebugModePanel: View {
         self.onSetEnabled = onSetEnabled
         self.onSetKeepAlivePolicy = onSetKeepAlivePolicy
         self.onSetBetaUpdateChannelEnabled = onSetBetaUpdateChannelEnabled
+        self.onClose = onClose
         self.isClosing = isClosing
         _displayedIsEnabled = State(initialValue: isEnabled)
         _displayedKeepAlivePolicy = State(initialValue: keepAlivePolicy)
@@ -2741,7 +2777,33 @@ private struct DebugModePanel: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        ScrollView(.vertical, showsIndicators: false) {
+          VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(L10n.text("偏好设置", "Preferences"))
+                        .font(.system(size: 21, weight: .black, design: .rounded))
+                    Text("STRA REFRESH  /  SYSTEM")
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .foregroundColor(Color(UIColor.secondaryLabel))
+                }
+                Spacer(minLength: 0)
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    onClose()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(Color(UIColor.label))
+                        .frame(width: 38, height: 38)
+                        .background(STRAStyle.glassSurface(cornerRadius: 19))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.text("关闭设置", "Close Preferences"))
+                .accessibilityIdentifier("stra.about.closeSettings")
+            }
+            .padding(.bottom, 5)
+
             HStack(spacing: 10) {
                 Image(systemName: "wrench.and.screwdriver")
                     .font(.system(size: 18, weight: .bold))
@@ -2842,18 +2904,16 @@ private struct DebugModePanel: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(Color(UIColor.secondaryLabel))
                 .fixedSize(horizontal: false, vertical: true)
+          }
+          .foregroundColor(Color(UIColor.label))
+          .padding(.horizontal, 18)
+          .padding(.vertical, 16)
         }
-        .foregroundColor(Color(UIColor.label))
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .frame(width: AdaptiveLayoutMetrics.current.panelWidth300)
+        .frame(width: min(390, UIScreen.main.bounds.width - 32))
+        .frame(maxHeight: max(265, UIScreen.main.bounds.height - 175))
         .background(panelBackground)
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(adaptiveGlassStrokeColor, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .shadow(color: Color.black.opacity(0.16), radius: 18, x: 0, y: 10)
+        .clipShape(RoundedRectangle(cornerRadius: 29, style: .continuous))
+        .shadow(color: Color.black.opacity(0.14), radius: 22, x: 0, y: 12)
         .onChange(of: isEnabled) { newValue in
             guard newValue != displayedIsEnabled else { return }
             displayedIsEnabled = newValue
@@ -2890,25 +2950,7 @@ private struct DebugModePanel: View {
     }
 
     private var panelBackground: AnyView {
-        let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
-        if isClosing {
-            return AnyView(
-                shape
-                    .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.22))
-            )
-        }
-        if #available(iOS 26.0, *) {
-            return AnyView(
-                shape
-                    .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.08))
-                    .glassEffect(.regular.interactive(), in: shape)
-            )
-        }
-        return AnyView(
-            shape
-                .fill(.ultraThinMaterial)
-                .overlay(shape.fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.28)))
-        )
+        STRAStyle.glassSurface(cornerRadius: 29, tint: STRAStyle.accent)
     }
 }
 
@@ -2919,8 +2961,8 @@ private struct VersionDescriptionView: View {
     var body: some View {
         VStack(spacing: isCompact ? 5 : 8) {
             Text(L10n.text(
-                "STRA 高刷 · 独立维护与优化",
-                "STRA independent edition · maintained by SOLHK"
+                "STRA Refresh · 独立维护与优化",
+                "STRA Refresh · independently maintained by SOLHK"
             ))
                 .fontWeight(.semibold)
                 .foregroundColor(STRAStyle.accent)
@@ -2931,6 +2973,13 @@ private struct VersionDescriptionView: View {
                 "独立界面 · 锁屏节能 · 温度恢复",
                 "Independent interface · lock savings · thermal recovery"
             ))
+
+            Link(destination: STRAProject.projectURL) {
+                Label(L10n.text("SOLHK · GitHub项目", "SOLHK · GitHub Project"), systemImage: "arrow.up.right")
+                    .font(.system(size: isCompact ? 13 : 15, weight: .bold))
+            }
+            .foregroundColor(STRAStyle.accent)
+            .accessibilityHint(L10n.text("查看 STRA Refresh 项目源码", "Open the STRA Refresh source repository"))
 
             HStack(spacing: 4) {
                 Text(L10n.text("开源致谢：", "Based on: "))
@@ -2951,7 +3000,10 @@ private struct VersionDescriptionView: View {
 }
 
 private struct PrimaryPiPButton: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let title: String
+    let subtitle: String
+    let isActive: Bool
     let action: () -> Void
 
     var body: some View {
@@ -2959,67 +3011,84 @@ private struct PrimaryPiPButton: View {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             action()
         } label: {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(STRAStyle.accent.opacity(0.18))
-
-                    Image(systemName: "bolt.horizontal.circle.fill")
-                        .font(.system(size: layout.isCompact ? 19 : 21, weight: .black))
+            VStack(alignment: .leading, spacing: 24) {
+                HStack {
+                    ZStack {
+                        if isActive {
+                            Image(systemName: "arrow.down.right.and.arrow.up.left")
+                                .transition(.opacity.combined(with: .scale(scale: 0.75)))
+                        } else {
+                            Image(systemName: "bolt.fill")
+                                .transition(.opacity.combined(with: .scale(scale: 0.75)))
+                        }
+                    }
+                        .font(.system(size: 25, weight: .semibold))
+                        .foregroundColor(STRAStyle.accent)
+                        .frame(width: 59, height: 59)
+                        .background(STRAStyle.glassSurface(cornerRadius: 20, tint: STRAStyle.accent))
+                    Spacer(minLength: 0)
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(STRAStyle.accent)
+                        .frame(width: 40, height: 40)
+                        .background(STRAStyle.glassSurface(cornerRadius: 20))
                 }
-                .frame(width: layout.isCompact ? 40 : 44, height: layout.isCompact ? 40 : 44)
-
-                Text(title)
-                    .font(.system(size: layout.isCompact ? 18 : 19, weight: .black, design: .rounded))
-                    .multilineTextAlignment(.center)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
-                    .frame(maxWidth: .infinity)
-
-                Color.clear
-                    .frame(width: layout.isCompact ? 40 : 44, height: layout.isCompact ? 40 : 44)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title)
+                        .id(title)
+                        .transition(.opacity.combined(with: .offset(y: reduceMotion ? 0 : 5)))
+                        .font(.system(size: layout.isNarrow ? 25 : 29, weight: .bold, design: .rounded))
+                        .foregroundColor(Color(UIColor.label))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                    Text(subtitle)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Color(UIColor.secondaryLabel))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            .foregroundColor(Color(UIColor.label))
-            .padding(.horizontal, layout.isNarrow ? 14 : 16)
-            .frame(maxWidth: 286)
-            .frame(height: layout.isCompact ? 62 : 72)
+            .padding(layout.isNarrow ? 21 : 25)
+            .frame(maxWidth: .infinity, minHeight: layout.isCompact ? 174 : 190, alignment: .leading)
+            .background(STRAStyle.glassSurface(
+                cornerRadius: 32,
+                tint: isActive ? STRAStyle.secondary : STRAStyle.accent
+            ))
+            .overlay {
+                RoundedRectangle(cornerRadius: 32, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.48), STRAStyle.accent.opacity(0.12), .clear],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.9
+                    )
+            }
+            .shadow(color: STRAStyle.accent.opacity(0.085), radius: 25, x: 0, y: 13)
         }
-        .buttonStyle(PrimaryLiquidGlassButtonStyle())
-        .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .buttonStyle(STRAPressFeedbackStyle())
+        .animation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.80), value: isActive)
+        .accessibilityIdentifier("stra.primaryPiP")
+        .accessibilityHint(isActive
+            ? L10n.text("先把悬浮窗拖到侧边吸附，再点此按钮将其最小化", "Dock PiP to the edge, then tap to minimize.")
+            : L10n.text("启动悬浮窗，然后此按钮自动切换为最小化", "Start PiP; this button becomes Minimize."))
     }
 
     private var layout: AdaptiveLayoutMetrics { .current }
 }
 
-private struct StartAndHidePiPButton: View {
-    let title: String
-    let action: () -> Void
+// Tap response only: no looping animations or background display-link work.
+private struct STRAPressFeedbackStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    var body: some View {
-        Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            action()
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "eye.slash.fill")
-                    .font(.system(size: layout.isCompact ? 16 : 17, weight: .black))
-                    .frame(width: 24, height: 24)
-
-                Text(title)
-                    .font(.system(size: layout.isCompact ? 15 : 16, weight: .bold, design: .rounded))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.76)
-            }
-            .foregroundColor(Color(UIColor.label))
-            .padding(.horizontal, 8)
-            .frame(width: layout.isNarrow ? 150 : 166)
-            .frame(height: layout.isCompact ? 46 : 50)
-        }
-        .buttonStyle(SecondaryPrimaryGlassButtonStyle())
-        .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? 0.978 : 1))
+            .opacity(configuration.isPressed ? 0.92 : 1)
+            .animation(reduceMotion ? nil : .spring(response: 0.23, dampingFraction: 0.75),
+                       value: configuration.isPressed)
     }
-
-    private var layout: AdaptiveLayoutMetrics { .current }
 }
 
 private struct ActionButton: View {
