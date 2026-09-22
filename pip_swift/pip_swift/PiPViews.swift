@@ -344,15 +344,13 @@ struct PiPHomeView: View {
                     .accessibilityIdentifier("stra.home.settingsBackdrop")
             }
 
-            settingsPopover
-                .padding(.top, layout.homeSettingsTop)
-                .padding(.trailing, layout.homeSettingsTrailing)
-                .opacity(isSettingsVisible ? 1 : 0)
-                .scaleEffect(isSettingsVisible ? 1 : 0.985, anchor: .topTrailing)
-                .blur(radius: isSettingsVisible ? 0 : 6)
-                .allowsHitTesting(isSettingsVisible)
-                .accessibilityHidden(!isSettingsVisible)
-                .zIndex(10)
+            if isSettingsVisible {
+                settingsPopover
+                    .padding(.top, layout.homeSettingsTop)
+                    .padding(.trailing, layout.homeSettingsTrailing)
+                    .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topTrailing)))
+                    .zIndex(10)
+            }
         }
         .onAppear {
             isSettingsVisible = isSettingsExpanded
@@ -429,6 +427,7 @@ struct PiPHomeView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(L10n.text("更多设置", "Settings"))
+                .accessibilityIdentifier("stra.home.openSettings")
             }
             VStack(alignment: .leading, spacing: 5) {
                 Text(L10n.text("刷新控制台", "Refresh Console"))
