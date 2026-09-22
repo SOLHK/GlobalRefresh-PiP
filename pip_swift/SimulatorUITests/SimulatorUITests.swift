@@ -48,19 +48,20 @@ final class SimulatorUITests: XCTestCase {
                 XCTAssertFalse(app.buttons["stra.stopPiP"].exists,
                                "Stop is shown in the status card only during an active PiP session")
                 let homeSettings = app.buttons["stra.home.closeSettings"]
-                let openHomeSettings = app.buttons.matching(NSPredicate(
-                    format: "label CONTAINS %@ OR label CONTAINS %@", "更多设置", "Settings"
-                )).firstMatch
+                let openHomeSettings = app.buttons["stra.home.openSettings"]
                 XCTAssertTrue(openHomeSettings.waitForExistence(timeout: 8),
-                              "Home settings must remain accessible after control consolidation")
+                              "Home settings gear must remain accessible after control consolidation")
+                XCTAssertTrue(openHomeSettings.isHittable, "Home settings gear must be tappable")
                 openHomeSettings.tap()
                 XCTAssertTrue(homeSettings.waitForExistence(timeout: 8),
                               "The translucent home preferences overlay must expose its close button")
+                XCTAssertTrue(homeSettings.isHittable, "Close must be visible, not a hidden overlay")
                 homeSettings.tap()
                 let homeDismissed = XCTNSPredicateExpectation(
                     predicate: NSPredicate(format: "exists == false"), object: homeSettings
                 )
-                XCTAssertEqual(XCTWaiter.wait(for: [homeDismissed], timeout: 5), .completed)
+                XCTAssertEqual(XCTWaiter.wait(for: [homeDismissed], timeout: 5), .completed,
+                               "Home preferences must be removed from hierarchy after close")
                 XCTAssertTrue(primary.isHittable, "Dismissing settings must restore the main button")
             }
             let capture = XCTAttachment(screenshot: app.screenshot())
