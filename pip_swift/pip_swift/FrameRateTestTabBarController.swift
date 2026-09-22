@@ -433,7 +433,7 @@ struct RootFrameRateTestView: View {
 
     var body: some View {
         ZStack {
-            Color(UIColor.systemBackground).ignoresSafeArea()
+            STRAStyle.canvas
             ScrollView {
                 VStack(alignment: .leading, spacing: 26) {
                     HStack {
@@ -469,7 +469,7 @@ struct RootFrameRateTestView: View {
                             .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(22)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28))
+                    .background(STRAStyle.glassSurface(cornerRadius: 28))
 
                     VStack(alignment: .leading, spacing: 18) {
                         HStack {

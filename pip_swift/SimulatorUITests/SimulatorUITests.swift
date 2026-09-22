@@ -22,6 +22,8 @@ final class SimulatorUITests: XCTestCase {
                 XCTAssertTrue(app.staticTexts["2.0.3"].waitForExistence(timeout: 8), "About must show the STRA 2.0 release")
                 let openSettings = app.buttons["stra.about.openSettings"]
                 XCTAssertTrue(openSettings.waitForExistence(timeout: 8), "About preferences button must be visible")
+                for _ in 0..<3 where !openSettings.isHittable { app.swipeUp() }
+                XCTAssertTrue(openSettings.isHittable)
                 openSettings.tap()
                 let closeSettings = app.buttons["stra.about.closeSettings"]
                 XCTAssertTrue(closeSettings.waitForExistence(timeout: 8), "Preferences needs a visible close button")

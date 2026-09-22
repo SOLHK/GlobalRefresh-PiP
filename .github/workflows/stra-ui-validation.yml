@@ -38,7 +38,7 @@ jobs:
         run: |
           mkdir -p evidence
           cp simulator-tests.log evidence/ 2>/dev/null || true
-          xcrun xcresulttool get test-results summary --path SimulatorResults.xcresult --format json > evidence/summary.json || true
+          xcrun xcresulttool get test-results summary --path SimulatorResults.xcresult --compact > evidence/summary.json || true
           xcrun xcresulttool export attachments --path SimulatorResults.xcresult --output-path evidence/attachments || true
           cat evidence/summary.json
       - uses: actions/upload-artifact@v4

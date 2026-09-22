@@ -64,7 +64,7 @@ private struct AdaptiveLayoutMetrics {
 }
 
 // STRA visual identity. Purely static gradients: no animation or background timer.
-private enum STRAStyle {
+enum STRAStyle {
     static let accent = Color(red: 0.02, green: 0.70, blue: 0.75)
     static let secondary = Color(red: 0.27, green: 0.46, blue: 0.93)
 

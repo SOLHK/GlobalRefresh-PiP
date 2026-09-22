@@ -979,6 +979,7 @@ final class ChangelogViewController: UIViewController {
 
         let stackView = UIStackView(arrangedSubviews: [
             makeSection(section: AppChangelogCatalog.latest),
+            makeSection(section: AppChangelogCatalog.version202),
             makeSection(section: AppChangelogCatalog.version201),
             makeSection(section: AppChangelogCatalog.version200),
             makeSection(section: AppChangelogCatalog.version111beta9),
