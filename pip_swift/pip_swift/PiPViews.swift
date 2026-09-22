@@ -335,22 +335,9 @@ struct PiPHomeView: View {
                     .zIndex(9)
             }
 
-            if isSettingsVisible {
-                Color.clear
-                    .contentShape(Rectangle())
-                    .padding(.top, layout.homeSettingsTop)
-                    .onTapGesture { dismissSettingsIfNeeded() }
-                    .zIndex(8)
-                    .accessibilityIdentifier("stra.home.settingsBackdrop")
-            }
-
-            if isSettingsVisible {
-                settingsPopover
-                    .padding(.top, layout.homeSettingsTop)
-                    .padding(.trailing, layout.homeSettingsTrailing)
-                    .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topTrailing)))
-                    .zIndex(10)
-            }
+        }
+        .sheet(isPresented: $isSettingsVisible, onDismiss: { dismissSettingsIfNeeded() }) {
+            settingsPopover
         }
         .onAppear {
             isSettingsVisible = isSettingsExpanded
@@ -927,7 +914,7 @@ struct PiPHomeView: View {
     private var settingsPopover: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack {
-                Text(L10n.text("高级设置", "Advanced Settings"))
+                Text(L10n.text("偏好设置", "Preferences"))
                     .font(.system(size: 18, weight: .black, design: .rounded))
                     .foregroundColor(Color(UIColor.label))
                 Spacer(minLength: 0)
@@ -946,8 +933,9 @@ struct PiPHomeView: View {
                 .accessibilityIdentifier("stra.home.closeSettings")
             }
 
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 7) {
+            ScrollView(.vertical, showsIndicators: true) {
+                VStack(alignment: .leading, spacing: 20) {
+                    Text("STRA / PREFERENCES").font(.caption.weight(.semibold)).tracking(3).foregroundStyle(.secondary)
                     SettingsToggleRow(
                         title: L10n.text("记忆悬浮窗高度", "Save Height"),
                         systemImage: "slider.horizontal.3",
@@ -1103,13 +1091,12 @@ struct PiPHomeView: View {
 
                 }
             }
-            .frame(maxHeight: layout.settingsVisibleOptionsHeight)
+            .frame(maxHeight: .infinity)
         }
-        .padding(14)
-        .frame(width: layout.homeSettingsPanelWidth)
-        .background(settingsPopoverBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .shadow(color: Color.black.opacity(0.12), radius: 20, x: 0, y: 10)
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(STRAStyle.canvas)
+        .tint(STRAStyle.accent)
     }
 
     private var settingsPopoverBackground: AnyView {
@@ -3163,9 +3150,9 @@ private struct SettingsToggleRow: View {
     private enum Style {
         static let iconSize: CGFloat = 14
         static let iconWidth: CGFloat = 20
-        static let titleSize: CGFloat = 14
+        static let titleSize: CGFloat = 16
         static let suffixSize: CGFloat = 9
-        static let descriptionSize: CGFloat = 11
+        static let descriptionSize: CGFloat = 13
     }
 
     let title: String
@@ -3390,7 +3377,7 @@ private struct EngineRoutePickerRow: View {
                     .font(.system(size: 14, weight: .bold))
                     .frame(width: 20, alignment: .center)
 
-                Text(L10n.text("底层切换", "Engine Switch"))
+                Text(L10n.text("运行方式", "Playback engine"))
                     .font(.system(size: 14, weight: .bold))
 
                 if L10n.isBetaBuild {
@@ -3420,7 +3407,7 @@ private struct EngineRoutePickerRow: View {
                             .minimumScaleFactor(0.76)
                             .foregroundColor(route == selectedRoute ? .white : Color(UIColor.systemBlue))
                             .frame(maxWidth: .infinity)
-                            .frame(height: 28)
+                            .frame(height: 44)
                             .background(
                                 Capsule()
                                     .fill(route == selectedRoute ? Color(UIColor.systemBlue) : Color(UIColor.systemBlue).opacity(0.10))

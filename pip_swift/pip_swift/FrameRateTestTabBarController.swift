@@ -480,16 +480,16 @@ struct RootFrameRateTestView: View {
                             }
                             Spacer()
                             Button { isPlaying.toggle() } label: {
-                                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                                    .frame(width: 48, height: 48)
+                                Label(isPlaying ? L10n.text("暂停", "Pause") : L10n.text("播放", "Play"), systemImage: isPlaying ? "pause.fill" : "play.fill")
+                                    .frame(minWidth: 76, minHeight: 44)
                             }
-                            .buttonStyle(.bordered).clipShape(Circle())
+                            .buttonStyle(.bordered)
                             .accessibilityLabel(isPlaying ? L10n.text("暂停演示", "Pause preview") : L10n.text("播放演示", "Play preview"))
                             .accessibilityIdentifier("stra.motion.play")
                         }
                         TimelineView(.animation(minimumInterval: 1.0 / 120, paused: !isPlaying || !isVisible || scenePhase != .active || reduceMotion)) { context in
+                            let phase = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3) / 3
                             GeometryReader { geometry in
-                                let phase = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3) / 3
                                 let travel = max(0, geometry.size.width - 48)
                                 ZStack(alignment: .leading) {
                                     HStack {
@@ -524,9 +524,10 @@ struct RootFrameRateTestView: View {
                                 Text(String(format: "%02d", index + 1))
                                     .font(.title2.weight(.light).monospacedDigit()).foregroundStyle(.secondary)
                                 VStack(alignment: .leading, spacing: 8) {
-                                    Capsule().fill(Color.primary.opacity(0.16)).frame(width: index % 2 == 0 ? 140 : 100, height: 7)
-                                    Capsule().fill(Color.primary.opacity(0.06)).frame(height: 6)
+                                    Text(L10n.text("滑动样本", "Scroll sample") + " \(index + 1)").font(.headline)
+                                    Text(L10n.text("上下滑动，观察文字的连续性", "Swipe to compare text motion")).font(.caption).foregroundStyle(.secondary)
                                 }
+                                Spacer(minLength: 0)
                                 Image(systemName: "sparkle").foregroundStyle(index % 2 == 0 ? Color.cyan : Color.blue)
                             }.padding(.vertical, 24)
                             Divider()
@@ -543,10 +544,10 @@ struct RootFrameRateTestView: View {
                 FrameRateDriverView(frameTick: $frameTick, targetFrameRate: isHighRefreshEnabled ? UIScreen.main.maximumFramesPerSecond : 80)
             }
         }
-        .onAppear { isVisible = true }
+        .onAppear { isVisible = true; isPlaying = !reduceMotion }
         .onDisappear { isVisible = false; isPlaying = false; frameTick = 0 }
         .onChange(of: scenePhase) { phase in
-            if phase != .active { isPlaying = false; frameTick = 0 }
+            if phase != .active { frameTick = 0 }
         }
     }
 

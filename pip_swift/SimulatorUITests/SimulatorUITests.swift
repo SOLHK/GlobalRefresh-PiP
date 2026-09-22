@@ -44,8 +44,11 @@ final class SimulatorUITests: XCTestCase {
                 mode.buttons.element(boundBy: 1).tap()
                 let play = app.buttons["stra.motion.play"]
                 XCTAssertTrue(play.isHittable)
+                let initialPlaybackLabel = play.label
                 play.tap()
+                XCTAssertNotEqual(play.label, initialPlaybackLabel, "Playback control must update its visible state")
                 play.tap()
+                XCTAssertEqual(play.label, initialPlaybackLabel, "Playback must resume after pausing")
                 app.swipeUp()
                 app.swipeDown()
             }
