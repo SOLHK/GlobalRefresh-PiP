@@ -609,6 +609,7 @@ struct RootFrameRateTestView: View {
                     .background(Color.cyan.opacity(0.07), in: RoundedRectangle(cornerRadius: 28))
     }
 
+    @ViewBuilder
     private var scrollDemoSection: some View {
         VStack(alignment: .leading, spacing: 14) {
                         Text(L10n.text("真实滑动 A / B", "Real Scroll A / B"))
@@ -720,7 +721,7 @@ struct RootFrameRateTestView: View {
                         }
                     }
                     RoundedRectangle(cornerRadius: 11)
-                        .fill(accent.gradient)
+                        .fill(accent)
                         .frame(width: 42, height: 42)
                         .offset(x: travel * CGFloat(progress))
                 }
