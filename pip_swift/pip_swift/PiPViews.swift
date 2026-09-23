@@ -914,8 +914,8 @@ struct PiPHomeView: View {
     private var settingsPopover: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack {
-                Text(L10n.text("偏好设置", "Preferences"))
-                    .font(.system(size: 18, weight: .black, design: .rounded))
+                Text(L10n.text("设置", "Settings"))
+                    .font(.system(size: 25, weight: .bold, design: .rounded))
                     .foregroundColor(Color(UIColor.label))
                 Spacer(minLength: 0)
                 Button {
@@ -935,7 +935,13 @@ struct PiPHomeView: View {
 
             ScrollView(.vertical, showsIndicators: true) {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("STRA / PREFERENCES").font(.caption.weight(.semibold)).tracking(3).foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("STRA / PREFERENCES").font(.caption.weight(.bold)).tracking(2.5).foregroundStyle(STRAStyle.accent)
+                        Text(L10n.text("分组管理你的悬浮窗与运行行为", "Manage your floating window and behavior"))
+                            .font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    .padding(.bottom, 4)
+                    settingsCategory(title: L10n.text("悬浮窗引擎", "Floating Window"), subtitle: L10n.text("高度记忆与显示方案", "Height and rendering engine"), icon: "rectangle.on.rectangle") {
                     SettingsToggleRow(
                         title: L10n.text("记忆悬浮窗高度", "Save Height"),
                         systemImage: "slider.horizontal.3",
@@ -962,10 +968,9 @@ struct PiPHomeView: View {
 
                     EngineRouteStatusRow(route: pipEngineRoute)
                         .id("engine-status-\(languageIdentity)")
+                    }
 
-                    Divider()
-                        .opacity(0.42)
-
+                    settingsCategory(title: L10n.text("保护与提醒", "Protection"), subtitle: L10n.text("异常通知与误触防护", "Conflict alerts and safeguards"), icon: "shield.lefthalf.filled") {
                     SettingsToggleRow(
                         title: L10n.text("悬浮窗被挤通知", "PiP Conflict Alert"),
                         systemImage: "rectangle.on.rectangle.slash.fill",
@@ -978,9 +983,39 @@ struct PiPHomeView: View {
                         }
                     )
 
-                    Divider()
-                        .opacity(0.42)
+                        Divider().opacity(0.25)
 
+                    SettingsToggleRow(
+                        title: L10n.text("防误触", "Confirm Before Closing"),
+                        systemImage: "hand.raised.fill",
+                        isOn: closeConfirmationBinding,
+                        allowsExpandedStatusText: true,
+                        statusText: { isOn in
+                            isOn
+                                ? L10n.text(
+                                    "通过App首页关闭悬浮窗前需要再次确认，避免误触",
+                                    "Requires confirmation before closing the floating window from the app's Home page."
+                                )
+                                : L10n.text(
+                                    "首页关闭悬浮窗时立即执行",
+                                    "Closes immediately from the app's Home page."
+                                )
+                        }
+                    )
+
+                        Divider().opacity(0.25)
+
+                    SettingsToggleRow(
+                        title: L10n.text("悬浮窗状态常驻", "Pin PiP Status"),
+                        systemImage: "pin.fill",
+                        isOn: pipStatusInfoPersistentBinding,
+                        statusText: { isOn in
+                            isOn ? L10n.text("使首页的悬浮窗状态时间常驻展示", "Keep PiP runtime visible on the home page.") : L10n.text("关闭后点开状态时间会按普通弹窗自动收起", "When off, the status panel auto-hides like a normal popover.")
+                        }
+                    )
+                    }
+
+                    settingsCategory(title: L10n.text("自动化", "Automation"), subtitle: L10n.text("快捷指令和一键操作", "Shortcuts and quick actions"), icon: "bolt.fill") {
                     SettingsToggleRow(
                         title: L10n.text("快捷指令功能", "Shortcuts"),
                         systemImage: "exclamationmark.triangle.fill",
@@ -1020,43 +1055,9 @@ struct PiPHomeView: View {
                             isShortcutInstallGuidePresented = true
                         }
                     }
+                    }
 
-                    Divider()
-                        .opacity(0.42)
-
-                    SettingsToggleRow(
-                        title: L10n.text("防误触", "Confirm Before Closing"),
-                        systemImage: "hand.raised.fill",
-                        isOn: closeConfirmationBinding,
-                        allowsExpandedStatusText: true,
-                        statusText: { isOn in
-                            isOn
-                                ? L10n.text(
-                                    "通过App首页关闭悬浮窗前需要再次确认，避免误触",
-                                    "Requires confirmation before closing the floating window from the app's Home page."
-                                )
-                                : L10n.text(
-                                    "首页关闭悬浮窗时立即执行",
-                                    "Closes immediately from the app's Home page."
-                                )
-                        }
-                    )
-
-                    Divider()
-                        .opacity(0.42)
-
-                    SettingsToggleRow(
-                        title: L10n.text("悬浮窗状态常驻", "Pin PiP Status"),
-                        systemImage: "pin.fill",
-                        isOn: pipStatusInfoPersistentBinding,
-                        statusText: { isOn in
-                            isOn ? L10n.text("使首页的悬浮窗状态时间常驻展示", "Keep PiP runtime visible on the home page.") : L10n.text("关闭后点开状态时间会按普通弹窗自动收起", "When off, the status panel auto-hides like a normal popover.")
-                        }
-                    )
-
-                    Divider()
-                        .opacity(0.42)
-
+                    settingsCategory(title: L10n.text("悬浮窗内容", "Overlay Content"), subtitle: L10n.text("只修改画中画内容，不代表实际高刷效果", "Appearance only; not proof of display refresh"), icon: "text.alignleft") {
                     SettingsToggleRow(
                         title: L10n.text("时间悬浮窗", "Clock PiP"),
                         systemImage: "clock.fill",
@@ -1073,8 +1074,7 @@ struct PiPHomeView: View {
                         }
                     )
 
-                    Divider()
-                        .opacity(0.42)
+                        Divider().opacity(0.25)
 
                     SettingsToggleRow(
                         title: L10n.text("悬浮窗内容滚动", "PiP Text Scrolling"),
@@ -1088,15 +1088,46 @@ struct PiPHomeView: View {
                             return L10n.text("关闭后可停止文本滚动，仅防止晃眼，并不影响全局120，仅文本悬浮窗生效", "Stops text scrolling only. It does not affect 120 Hz and only applies to text PiP.")
                         }
                     )
-
+                    }
                 }
             }
             .frame(maxHeight: .infinity)
         }
-        .padding(24)
+        .padding(.horizontal, 18)
+        .padding(.top, 18)
+        .padding(.bottom, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(STRAStyle.canvas)
         .tint(STRAStyle.accent)
+    }
+
+    private func settingsCategory<Content: View>(
+        title: String,
+        subtitle: String,
+        icon: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(STRAStyle.accent)
+                    .frame(width: 38, height: 38)
+                    .background(STRAStyle.accent.opacity(0.11), in: RoundedRectangle(cornerRadius: 13))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title).font(.system(size: 17, weight: .bold, design: .rounded))
+                    Text(subtitle).font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+            VStack(alignment: .leading, spacing: 12) {
+                content()
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(STRAStyle.glassSurface(cornerRadius: 22))
+        }
+        .accessibilityElement(children: .contain)
     }
 
     private var settingsPopoverBackground: AnyView {

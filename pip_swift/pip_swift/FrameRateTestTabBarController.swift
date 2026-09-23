@@ -425,10 +425,10 @@ private struct FrameRateTestPageView: View {
 
 struct RootFrameRateTestView: View {
     @AppStorage(FrameRatePreference.force120HzKey) private var isHighRefreshEnabled = true
-    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var frameTick = 0
     @State private var isVisible = false
+    @State private var isAppActive = true
     @State private var isPlaying = false
 
     var body: some View {
@@ -457,7 +457,7 @@ struct RootFrameRateTestView: View {
                                 Text("\(UIScreen.main.maximumFramesPerSecond) Hz").font(.headline)
                             }
                         }
-                        Text(L10n.text("本页显示回调频率 · 不代表其他 App 帧率", "This page’s callback rate · not other apps’ FPS"))
+                        Text(L10n.text("本页 DisplayLink 回调频率；不是屏幕实测刷新率，也不代表其他 App 帧率", "This page’s DisplayLink callbacks, not a physical display measurement or other apps’ FPS"))
                             .font(.caption).foregroundStyle(.secondary)
                         Picker(L10n.text("刷新模式", "Refresh mode"), selection: forceRefreshBinding) {
                             Text(L10n.text("系统自适应", "Adaptive")).tag(false)
@@ -465,7 +465,9 @@ struct RootFrameRateTestView: View {
                         }
                         .pickerStyle(.segmented)
                         .accessibilityIdentifier("stra.motion.mode")
-                        Text(L10n.text("模式同时影响应用与悬浮窗，实际刷新由系统决定。", "Mode also affects PiP. iOS determines the actual refresh rate."))
+                        Text(isHighRefreshEnabled
+                             ? L10n.text("当前请求更高刷新率 · 是否生效以系统与真机体验为准", "Higher refresh requested · actual effect depends on iOS and device")
+                             : L10n.text("已释放高刷请求 · 系统自动调节，不保证固定 80Hz", "High-refresh request released · adaptive, not a fixed 80 Hz"))
                             .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(22)
@@ -479,15 +481,28 @@ struct RootFrameRateTestView: View {
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                             Spacer()
-                            Button { isPlaying.toggle() } label: {
+                            Button { isPlaying.toggle(); UISelectionFeedbackGenerator().selectionChanged() } label: {
                                 Label(isPlaying ? L10n.text("暂停", "Pause") : L10n.text("播放", "Play"), systemImage: isPlaying ? "pause.fill" : "play.fill")
                                     .frame(minWidth: 76, minHeight: 44)
                             }
                             .buttonStyle(.bordered)
                             .accessibilityLabel(isPlaying ? L10n.text("暂停演示", "Pause preview") : L10n.text("播放演示", "Play preview"))
                             .accessibilityIdentifier("stra.motion.play")
+                            .disabled(reduceMotion)
                         }
-                        TimelineView(.animation(minimumInterval: 1.0 / 120, paused: !isPlaying || !isVisible || scenePhase != .active || reduceMotion)) { context in
+                        HStack(spacing: 6) {
+                            Circle().fill(isPlaying && isAppActive && !reduceMotion ? Color.green : Color.secondary)
+                                .frame(width: 7, height: 7)
+                            Text(isPlaying && isAppActive && !reduceMotion
+                                 ? L10n.text("动画播放中 · 可暂停对照", "Preview running · pause to compare")
+                                 : L10n.text("动画已暂停", "Preview paused"))
+                                .font(.caption).foregroundStyle(.secondary)
+                            Spacer()
+                        }
+                        .accessibilityIdentifier("stra.motion.playState")
+                        // This page is hosted by UIKit. Environment scenePhase can remain
+                        // inactive even while UIKit reports a visible foreground window.
+                        TimelineView(.animation(minimumInterval: 1.0 / 120, paused: !isPlaying || !isVisible || !isAppActive || reduceMotion)) { context in
                             let phase = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3) / 3
                             GeometryReader { geometry in
                                 let travel = max(0, geometry.size.width - 48)
@@ -544,10 +559,25 @@ struct RootFrameRateTestView: View {
                 FrameRateDriverView(frameTick: $frameTick, targetFrameRate: isHighRefreshEnabled ? UIScreen.main.maximumFramesPerSecond : 80)
             }
         }
-        .onAppear { isVisible = true; isPlaying = !reduceMotion }
+        .onAppear {
+            isVisible = true
+            isAppActive = UIApplication.shared.applicationState == .active
+            isPlaying = !reduceMotion
+        }
         .onDisappear { isVisible = false; isPlaying = false; frameTick = 0 }
-        .onChange(of: scenePhase) { phase in
-            if phase != .active { frameTick = 0 }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            isAppActive = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+            isAppActive = false
+            frameTick = 0
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+            isAppActive = false
+            frameTick = 0
+        }
+        .onChange(of: reduceMotion) { reduced in
+            if reduced { isPlaying = false }
         }
     }
 

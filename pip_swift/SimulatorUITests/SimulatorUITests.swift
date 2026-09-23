@@ -4,7 +4,7 @@ final class SimulatorUITests: XCTestCase {
     func testLaunchNavigateAndBackgroundForeground() {
         let app = XCUIApplication()
         app.launchArguments = ["-globalRefresh.launchCelebration.seen.1.1.0.tutorial-v7", "YES",
-                               "-globalRefresh.latestChangelog.seen.2.0.3", "YES"]
+                               "-globalRefresh.latestChangelog.seen.2.0.4", "YES"]
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
         let tabs = app.tabBars.firstMatch
@@ -19,7 +19,7 @@ final class SimulatorUITests: XCTestCase {
             tab.tap()
             XCTAssertTrue(tab.isSelected)
             if index == 2 {
-                XCTAssertTrue(app.staticTexts["2.0.3"].waitForExistence(timeout: 8), "About must show the STRA 2.0 release")
+                XCTAssertTrue(app.staticTexts["2.0.4"].waitForExistence(timeout: 8), "About must show the STRA 2.0 release")
                 let openSettings = app.buttons["stra.about.openSettings"]
                 XCTAssertTrue(openSettings.waitForExistence(timeout: 8), "About preferences button must be visible")
                 for _ in 0..<3 where !openSettings.isHittable { app.swipeUp() }
@@ -42,6 +42,7 @@ final class SimulatorUITests: XCTestCase {
                 mode.buttons.element(boundBy: 0).tap()
                 XCTAssertTrue(mode.buttons.element(boundBy: 0).isSelected)
                 mode.buttons.element(boundBy: 1).tap()
+                XCTAssertTrue(app.descendants(matching: .any)["stra.motion.playState"].exists)
                 let play = app.buttons["stra.motion.play"]
                 XCTAssertTrue(play.isHittable)
                 let initialPlaybackLabel = play.label
@@ -75,6 +76,8 @@ final class SimulatorUITests: XCTestCase {
                 XCTAssertTrue(homeSettings.waitForExistence(timeout: 8),
                               "The translucent home preferences overlay must expose its close button")
                 XCTAssertTrue(homeSettings.isHittable, "Close must be visible, not a hidden overlay")
+                XCTAssertTrue(app.staticTexts["悬浮窗引擎"].exists || app.staticTexts["Floating Window"].exists,
+                              "STRA settings must show the grouped engine section")
                 homeSettings.tap()
                 let homeDismissed = XCTNSPredicateExpectation(
                     predicate: NSPredicate(format: "exists == false"), object: homeSettings

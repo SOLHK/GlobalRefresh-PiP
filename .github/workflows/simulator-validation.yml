@@ -2,7 +2,7 @@ name: iPhone simulator validation
 on:
   workflow_dispatch:
   push:
-    branches: [codex/power-saving-beta2, codex/stra-beta9, codex/stra-2.0]
+    branches: [codex/power-saving-beta2, codex/stra-beta9, codex/stra-2.0, codex/stra-2.0.4-motion-settings-fix]
     paths: ['pip_swift/**', 'ci/**', '.github/workflows/**']
 permissions:
   contents: read
