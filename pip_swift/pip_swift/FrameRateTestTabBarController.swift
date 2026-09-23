@@ -475,7 +475,44 @@ struct RootFrameRateTestView: View {
                     .padding(22)
                     .background(STRAStyle.glassSurface(cornerRadius: 28))
 
-                    VStack(alignment: .leading, spacing: 16) {
+                    motionDemoSection
+
+                    scrollDemoSection
+                }
+                .padding(.horizontal, 24).padding(.top, 20).padding(.bottom, 32)
+                .frame(maxWidth: 600).frame(maxWidth: .infinity)
+            }
+        }
+        .background {
+            if isVisible {
+                FrameRateDriverView(frameTick: $frameTick, targetFrameRate: isHighRefreshEnabled ? UIScreen.main.maximumFramesPerSecond : 80)
+            }
+        }
+        .onAppear {
+            isVisible = true
+            isAppActive = UIApplication.shared.applicationState == .active
+            isPlaying = !reduceMotion
+            motionEpoch = Date()
+        }
+        .onDisappear { isVisible = false; isPlaying = false; frameTick = 0 }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            isAppActive = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+            isAppActive = false
+            frameTick = 0
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+            isAppActive = false
+            frameTick = 0
+        }
+        .onChange(of: reduceMotion) { reduced in
+            if reduced { isPlaying = false }
+        }
+    }
+
+    private var motionDemoSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(L10n.text("动态体验 · 同屏对照", "Motion · Side-by-Side Comparison"))
@@ -570,8 +607,10 @@ struct RootFrameRateTestView: View {
                     }
                     .padding(20)
                     .background(Color.cyan.opacity(0.07), in: RoundedRectangle(cornerRadius: 28))
+    }
 
-                    VStack(alignment: .leading, spacing: 14) {
+    private var scrollDemoSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
                         Text(L10n.text("真实滑动 A / B", "Real Scroll A / B"))
                             .font(.title3.weight(.bold))
                         Text(L10n.text(
@@ -636,37 +675,6 @@ struct RootFrameRateTestView: View {
                         }
                     }
                     .accessibilityLabel(L10n.text("A B 滑动对照列表", "A B scroll comparison list"))
-                }
-                .padding(.horizontal, 24).padding(.top, 20).padding(.bottom, 32)
-                .frame(maxWidth: 600).frame(maxWidth: .infinity)
-            }
-        }
-        .background {
-            if isVisible {
-                FrameRateDriverView(frameTick: $frameTick, targetFrameRate: isHighRefreshEnabled ? UIScreen.main.maximumFramesPerSecond : 80)
-            }
-        }
-        .onAppear {
-            isVisible = true
-            isAppActive = UIApplication.shared.applicationState == .active
-            isPlaying = !reduceMotion
-            motionEpoch = Date()
-        }
-        .onDisappear { isVisible = false; isPlaying = false; frameTick = 0 }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-            isAppActive = true
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
-            isAppActive = false
-            frameTick = 0
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
-            isAppActive = false
-            frameTick = 0
-        }
-        .onChange(of: reduceMotion) { reduced in
-            if reduced { isPlaying = false }
-        }
     }
 
     private func scrollModeButton(label: String, selected: Bool, action: @escaping () -> Void) -> some View {
@@ -684,7 +692,7 @@ struct RootFrameRateTestView: View {
                             in: RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(.plain)
-        .accessibilityAddTraits(selected ? [.isSelected] : [])
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private func motionComparisonLane(label: String, sampleRate: Int, elapsed: TimeInterval, accent: Color) -> some View {
