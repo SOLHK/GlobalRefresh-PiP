@@ -2,7 +2,7 @@ name: iOS 27 release simulator validation
 on:
   workflow_dispatch:
   push:
-    branches: [codex/power-saving-beta2, codex/stra-2.0, codex/stra-2.0.4-motion-settings-fix]
+    branches: [codex/power-saving-beta2, codex/stra-2.0, codex/stra-2.0.4-motion-settings-fix, codex/stra-2.0.5-meaningful-motion-compare]
     paths: ['pip_swift/**', 'ci/**', '.github/workflows/**']
 permissions:
   contents: read

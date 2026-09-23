@@ -683,6 +683,17 @@ struct AppChangelogSection {
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
         AppChangelogSection(
+            version: L10n.text("2.0.5 · 双轨对照与真实滑动 A/B", "2.0.5 · Motion & Scroll A/B"),
+            items: [
+                L10n.text("同屏加入 30/60/80 与 120 FPS 同速双轨抽帧模拟，差异可切换观察", "Paired 30/60/80 and 120 FPS cadence simulations with matched speeds."),
+                L10n.text("真实滑动区新增 A 系统自适应与 B 请求高刷对照，显示本页采样值", "A/B scrolling switches adaptive/high-refresh requests and displays page callback rates."),
+                L10n.text("标明模拟抽帧不代表物理屏幕刷新率，不能据此断言其他 App 达到 120 FPS", "The simulated lanes do not measure physical refresh or other apps' FPS.")
+            ]
+        )
+    }
+
+    static var version204: AppChangelogSection {
+        AppChangelogSection(
             version: L10n.text("2.0.4 · 动画修复与独立设置", "2.0.4 · Motion & Settings Fix"),
             items: [
                 L10n.text("修复 UIKit 宿主下的动画活跃状态判断，确保播放与暂停响应", "Fix animation active-state handling in the UIKit host so play and pause respond."),
@@ -990,6 +1001,7 @@ final class ChangelogViewController: UIViewController {
 
         let stackView = UIStackView(arrangedSubviews: [
             makeSection(section: AppChangelogCatalog.latest),
+            makeSection(section: AppChangelogCatalog.version204),
             makeSection(section: AppChangelogCatalog.version203),
             makeSection(section: AppChangelogCatalog.version202),
             makeSection(section: AppChangelogCatalog.version201),

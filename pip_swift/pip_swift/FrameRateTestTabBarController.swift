@@ -430,6 +430,8 @@ struct RootFrameRateTestView: View {
     @State private var isVisible = false
     @State private var isAppActive = true
     @State private var isPlaying = false
+    @State private var comparisonLowFPS = 60
+    @State private var motionEpoch = Date()
 
     var body: some View {
         ZStack {
@@ -473,82 +475,9 @@ struct RootFrameRateTestView: View {
                     .padding(22)
                     .background(STRAStyle.glassSurface(cornerRadius: 28))
 
-                    VStack(alignment: .leading, spacing: 18) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(L10n.text("动态体验", "Motion preview")).font(.title3.weight(.semibold))
-                                Text(L10n.text("切换模式，观察移动的连续性", "Switch modes to compare motion"))
-                                    .font(.caption).foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Button { isPlaying.toggle(); UISelectionFeedbackGenerator().selectionChanged() } label: {
-                                Label(isPlaying ? L10n.text("暂停", "Pause") : L10n.text("播放", "Play"), systemImage: isPlaying ? "pause.fill" : "play.fill")
-                                    .frame(minWidth: 76, minHeight: 44)
-                            }
-                            .buttonStyle(.bordered)
-                            .accessibilityLabel(isPlaying ? L10n.text("暂停演示", "Pause preview") : L10n.text("播放演示", "Play preview"))
-                            .accessibilityIdentifier("stra.motion.play")
-                            .disabled(reduceMotion)
-                        }
-                        HStack(spacing: 6) {
-                            Circle().fill(isPlaying && isAppActive && !reduceMotion ? Color.green : Color.secondary)
-                                .frame(width: 7, height: 7)
-                            Text(isPlaying && isAppActive && !reduceMotion
-                                 ? L10n.text("动画播放中 · 可暂停对照", "Preview running · pause to compare")
-                                 : L10n.text("动画已暂停", "Preview paused"))
-                                .font(.caption).foregroundStyle(.secondary)
-                            Spacer()
-                        }
-                        .accessibilityIdentifier("stra.motion.playState")
-                        // This page is hosted by UIKit. Environment scenePhase can remain
-                        // inactive even while UIKit reports a visible foreground window.
-                        TimelineView(.animation(minimumInterval: 1.0 / 120, paused: !isPlaying || !isVisible || !isAppActive || reduceMotion)) { context in
-                            let phase = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3) / 3
-                            GeometryReader { geometry in
-                                let travel = max(0, geometry.size.width - 48)
-                                ZStack(alignment: .leading) {
-                                    HStack {
-                                        ForEach(0..<15, id: \.self) { _ in
-                                            Capsule().fill(Color.primary.opacity(0.08)).frame(width: 2, height: 74)
-                                            Spacer(minLength: 0)
-                                        }
-                                    }
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .fill(LinearGradient(colors: [.cyan, .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                        .frame(width: 48, height: 48)
-                                        .offset(x: reduceMotion ? travel / 2 : travel * CGFloat((1 - cos(phase * 2 * .pi)) / 2))
-                                }.frame(maxHeight: .infinity)
-                            }
-                        }.frame(height: 110)
-                        if reduceMotion {
-                            Text(L10n.text("已遵循系统“减弱动态效果”设置", "Reduce Motion is enabled"))
-                                .font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(22)
-                    .background(Color.cyan.opacity(0.07), in: RoundedRectangle(cornerRadius: 28))
+                    motionDemoSection
 
-                    HStack {
-                        Text(L10n.text("滑动体验", "Scroll test")).font(.title3.weight(.semibold))
-                        Spacer()
-                        Image(systemName: "arrow.up.arrow.down").foregroundStyle(.secondary)
-                    }
-                    LazyVStack(spacing: 0) {
-                        ForEach(0..<18, id: \.self) { index in
-                            HStack(spacing: 20) {
-                                Text(String(format: "%02d", index + 1))
-                                    .font(.title2.weight(.light).monospacedDigit()).foregroundStyle(.secondary)
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text(L10n.text("滑动样本", "Scroll sample") + " \(index + 1)").font(.headline)
-                                    Text(L10n.text("上下滑动，观察文字的连续性", "Swipe to compare text motion")).font(.caption).foregroundStyle(.secondary)
-                                }
-                                Spacer(minLength: 0)
-                                Image(systemName: "sparkle").foregroundStyle(index % 2 == 0 ? Color.cyan : Color.blue)
-                            }.padding(.vertical, 24)
-                            Divider()
-                        }
-                    }
-                    .accessibilityLabel(L10n.text("上下滑动比较流畅度", "Scroll to compare smoothness"))
+                    scrollDemoSection
                 }
                 .padding(.horizontal, 24).padding(.top, 20).padding(.bottom, 32)
                 .frame(maxWidth: 600).frame(maxWidth: .infinity)
@@ -563,6 +492,7 @@ struct RootFrameRateTestView: View {
             isVisible = true
             isAppActive = UIApplication.shared.applicationState == .active
             isPlaying = !reduceMotion
+            motionEpoch = Date()
         }
         .onDisappear { isVisible = false; isPlaying = false; frameTick = 0 }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
@@ -579,6 +509,227 @@ struct RootFrameRateTestView: View {
         .onChange(of: reduceMotion) { reduced in
             if reduced { isPlaying = false }
         }
+    }
+
+    private var motionDemoSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(L10n.text("动态体验 · 同屏对照", "Motion · Side-by-Side Comparison"))
+                                    .font(.title3.weight(.bold))
+                                Text(L10n.text("两条轨道同速度，只有更新频率不同", "Same speed and distance; only update cadence differs"))
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 4)
+                            Button {
+                                if !isPlaying { motionEpoch = Date() }
+                                isPlaying.toggle()
+                                UISelectionFeedbackGenerator().selectionChanged()
+                            } label: {
+                                Label(isPlaying ? L10n.text("暂停", "Pause") : L10n.text("播放", "Play"),
+                                      systemImage: isPlaying ? "pause.fill" : "play.fill")
+                                    .frame(minWidth: 67, minHeight: 44)
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(reduceMotion)
+                            .accessibilityLabel(isPlaying ? L10n.text("暂停演示", "Pause preview") : L10n.text("播放演示", "Play preview"))
+                            .accessibilityIdentifier("stra.motion.play")
+                        }
+
+                        Picker(L10n.text("对照档位", "Comparison cadence"), selection: $comparisonLowFPS) {
+                            Text("30 / 120").tag(30)
+                            Text("60 / 120").tag(60)
+                            Text("80 / 120").tag(80)
+                        }
+                        .pickerStyle(.segmented)
+                        .accessibilityIdentifier("stra.motion.compareMode")
+                        .onChange(of: comparisonLowFPS) { _ in motionEpoch = Date() }
+
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(isPlaying && isAppActive && !reduceMotion ? Color.green : Color.secondary)
+                                .frame(width: 7, height: 7)
+                            Text(isPlaying && isAppActive && !reduceMotion
+                                 ? L10n.text("同速对照播放中", "Matched-speed comparison running")
+                                 : L10n.text("已暂停 · 点击播放重新开始", "Paused · tap Play to restart"))
+                                .font(.caption).foregroundStyle(.secondary)
+                            Spacer()
+                        }
+                        .accessibilityIdentifier("stra.motion.playState")
+
+                        TimelineView(.animation(
+                            minimumInterval: 1.0 / 120.0,
+                            paused: !isPlaying || !isVisible || !isAppActive || reduceMotion
+                        )) { context in
+                            let elapsed = max(0, context.date.timeIntervalSince(motionEpoch))
+                            VStack(spacing: 17) {
+                                motionComparisonLane(
+                                    label: L10n.text("模拟低频", "Simulated low"),
+                                    sampleRate: comparisonLowFPS, elapsed: elapsed,
+                                    accent: Color(UIColor.systemOrange)
+                                )
+                                motionComparisonLane(
+                                    label: L10n.text("模拟高频", "Simulated high"),
+                                    sampleRate: 120, elapsed: elapsed,
+                                    accent: STRAStyle.accent
+                                )
+                            }
+                        }
+                        .frame(height: 188)
+                        .accessibilityIdentifier("stra.motion.compareLanes")
+
+                        Text(comparisonLowFPS == 80
+                            ? L10n.text("80 / 120 差距本来较小；先用 30 / 120 看清跳帧，再切回 80 / 120。", "80 vs 120 is subtle. Start with 30 vs 120, then compare 80 vs 120.")
+                            : L10n.text("先盯住蓝色与橙色方块的边缘，再观察移动中的断续感。", "Watch the block edges and cadence while both travel together."))
+                            .font(.caption).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        if !isHighRefreshEnabled || (frameTick > 0 && frameTick < 105) {
+                            Label(
+                                L10n.text("当前本页回调不足以完整展示 120 帧；点上方“请求高刷”后重试。",
+                                          "This page is not receiving enough callbacks to fully show 120. Select High refresh above."),
+                                systemImage: "info.circle"
+                            )
+                            .font(.caption).foregroundStyle(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Text(L10n.text(
+                            "这是同屏抽帧模拟对照，不是两块独立运行在不同 Hz 的屏幕；120 帧效果受本页实际回调限制。",
+                            "This is a simulated cadence comparison on one display, not two physical refresh rates. The high lane is limited by actual page callbacks."
+                        ))
+                        .font(.caption2).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                        if reduceMotion {
+                            Text(L10n.text("已开启系统“减弱动态效果”，本页自动暂停。", "Reduce Motion is enabled; this preview is paused."))
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(20)
+                    .background(Color.cyan.opacity(0.07), in: RoundedRectangle(cornerRadius: 28))
+    }
+
+    @ViewBuilder
+    private var scrollDemoSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+                        Text(L10n.text("真实滑动 A / B", "Real Scroll A / B"))
+                            .font(.title3.weight(.bold))
+                        Text(L10n.text(
+                            "先点 A，向下滑一遍；回到这里点 B，以相同手势再滑一遍。对照的是本页请求方式，不是把左右半屏锁成两个物理刷新率。",
+                            "Run A and scroll, then return and run B with the same gesture. This changes this page’s refresh request; it is not two physical screen refresh rates."
+                        ))
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                        HStack(spacing: 10) {
+                            scrollModeButton(
+                                label: L10n.text("A · 系统自适应", "A · Adaptive"),
+                                selected: !isHighRefreshEnabled,
+                                action: { forceRefreshBinding.wrappedValue = false }
+                            )
+                            scrollModeButton(
+                                label: L10n.text("B · 请求高刷", "B · High Refresh"),
+                                selected: isHighRefreshEnabled,
+                                action: { forceRefreshBinding.wrappedValue = true }
+                            )
+                        }
+                        Text(L10n.text("本页实际回调：", "Page callbacks: ") + (frameTick > 0 ? "\(frameTick) FPS" : "—"))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(STRAStyle.accent)
+                            .monospacedDigit()
+                            .accessibilityIdentifier("stra.motion.scrollFPS")
+                        Text(L10n.text(
+                            "两次测试请看文字边缘、数字和分隔线在滑动中是否更连续；系统自适应不等于锁定 80Hz。",
+                            "Compare text edges, numbers and dividers during each swipe. Adaptive does not mean a fixed 80 Hz."
+                        ))
+                        .font(.caption).foregroundStyle(.secondary)
+                    }
+                    .padding(18)
+                    .background(STRAStyle.glassSurface(cornerRadius: 23))
+                    .id("stra.motion.scrollStart")
+
+                    LazyVStack(spacing: 0) {
+                        ForEach(0..<28, id: \.self) { index in
+                            HStack(spacing: 14) {
+                                Text(String(format: "%02d", index + 1))
+                                    .font(.system(size: 27, weight: .light, design: .rounded))
+                                    .monospacedDigit()
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 46, alignment: .leading)
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(L10n.text("流畅度对照", "Motion clarity") + "  \(index + 1)")
+                                        .font(.system(size: 17, weight: .semibold))
+                                    Text("STRA / 0123456789  —  \(String(format: "%02d", index + 1))")
+                                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                        .foregroundStyle(.secondary)
+                                    Capsule()
+                                        .fill(index.isMultiple(of: 2) ? STRAStyle.accent : Color(UIColor.systemOrange))
+                                        .frame(width: CGFloat(52 + (index % 4) * 18), height: 3)
+                                }
+                                Spacer(minLength: 0)
+                                Image(systemName: index.isMultiple(of: 2) ? "circle.hexagongrid.fill" : "circle.grid.3x3.fill")
+                                    .font(.system(size: 17))
+                                    .foregroundStyle(index.isMultiple(of: 2) ? STRAStyle.accent : Color(UIColor.systemOrange))
+                            }
+                            .padding(.vertical, 18)
+                            Divider()
+                        }
+                    }
+                    .accessibilityLabel(L10n.text("A B 滑动对照列表", "A B scroll comparison list"))
+    }
+
+    private func scrollModeButton(label: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button {
+            action()
+            UISelectionFeedbackGenerator().selectionChanged()
+        } label: {
+            Text(label)
+                .font(.system(size: 13, weight: .semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+                .frame(maxWidth: .infinity, minHeight: 45)
+                .foregroundStyle(selected ? Color.white : STRAStyle.accent)
+                .background(selected ? STRAStyle.accent : STRAStyle.accent.opacity(0.1),
+                            in: RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private func motionComparisonLane(label: String, sampleRate: Int, elapsed: TimeInterval, accent: Color) -> some View {
+        let sampled = floor(elapsed * Double(sampleRate)) / Double(sampleRate)
+        let cycle = sampled.truncatingRemainder(dividingBy: 2.4)
+        let progress = cycle <= 1.2 ? cycle / 1.2 : (2.4 - cycle) / 1.2
+        return VStack(alignment: .leading, spacing: 9) {
+            HStack {
+                Text(label)
+                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                Spacer()
+                Text("\(sampleRate) FPS")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(accent)
+            }
+            GeometryReader { geometry in
+                let travel = max(0, geometry.size.width - 42)
+                ZStack(alignment: .leading) {
+                    HStack(spacing: 0) {
+                        ForEach(0..<15, id: \.self) { _ in
+                            Rectangle().fill(Color.primary.opacity(0.12))
+                                .frame(width: 1.5, height: 38)
+                            Spacer(minLength: 0)
+                        }
+                    }
+                    RoundedRectangle(cornerRadius: 11)
+                        .fill(accent)
+                        .frame(width: 42, height: 42)
+                        .offset(x: travel * CGFloat(progress))
+                }
+                .frame(maxHeight: .infinity)
+            }
+            .frame(height: 43)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var forceRefreshBinding: Binding<Bool> {
