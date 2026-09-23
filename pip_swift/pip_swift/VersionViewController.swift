@@ -683,6 +683,17 @@ struct AppChangelogSection {
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
         AppChangelogSection(
+            version: L10n.text("2.0.4 · 动画修复与独立设置", "2.0.4 · Motion & Settings Fix"),
+            items: [
+                L10n.text("修复 UIKit 宿主下的动画活跃状态判断，确保播放与暂停响应", "Fix animation active-state handling in the UIKit host so play and pause respond."),
+                L10n.text("设置页改为 STRA 独立分组布局：引擎、保护、自动化和悬浮内容", "Group STRA settings into Engine, Protection, Automation and Overlay Content."),
+                L10n.text("帧率读数明确为本页回调而非真实屏幕或其他应用帧率", "Clarify that callback measurements are not physical refresh or other apps’ FPS.")
+            ]
+        )
+    }
+
+    static var version203: AppChangelogSection {
+        AppChangelogSection(
             version: L10n.text("2.0.3 · 全新帧率与版本界面", "2.0.3 · Motion Lab & About"),
             items: [
                 L10n.text("重做帧率展示：本页回调频率、模式切换、可暂停动态演示与滑动体验", "Redesigned motion lab with callback measurement, modes, optional animation and scroll test."),
@@ -979,6 +990,7 @@ final class ChangelogViewController: UIViewController {
 
         let stackView = UIStackView(arrangedSubviews: [
             makeSection(section: AppChangelogCatalog.latest),
+            makeSection(section: AppChangelogCatalog.version203),
             makeSection(section: AppChangelogCatalog.version202),
             makeSection(section: AppChangelogCatalog.version201),
             makeSection(section: AppChangelogCatalog.version200),
