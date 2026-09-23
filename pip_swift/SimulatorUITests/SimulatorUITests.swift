@@ -43,6 +43,14 @@ final class SimulatorUITests: XCTestCase {
                 XCTAssertTrue(mode.buttons.element(boundBy: 0).isSelected)
                 mode.buttons.element(boundBy: 1).tap()
                 XCTAssertTrue(app.descendants(matching: .any)["stra.motion.playState"].exists)
+                let play = app.buttons["stra.motion.play"]
+                if !play.isHittable { app.swipeUp() }
+                XCTAssertTrue(play.isHittable)
+                let initialPlaybackLabel = play.label
+                play.tap()
+                XCTAssertNotEqual(play.label, initialPlaybackLabel, "Playback control must update its visible state")
+                play.tap()
+                XCTAssertEqual(play.label, initialPlaybackLabel, "Playback must resume after pausing")
                 let comparison = app.segmentedControls["stra.motion.compareMode"]
                 if !comparison.isHittable { app.swipeUp() }
                 XCTAssertTrue(comparison.waitForExistence(timeout: 5), "30/60/80 vs 120 paired comparison must exist")
@@ -51,13 +59,6 @@ final class SimulatorUITests: XCTestCase {
                 comparison.buttons.element(boundBy: 2).tap()
                 XCTAssertTrue(comparison.buttons.element(boundBy: 2).isSelected)
                 comparison.buttons.element(boundBy: 1).tap()
-                let play = app.buttons["stra.motion.play"]
-                XCTAssertTrue(play.isHittable)
-                let initialPlaybackLabel = play.label
-                play.tap()
-                XCTAssertNotEqual(play.label, initialPlaybackLabel, "Playback control must update its visible state")
-                play.tap()
-                XCTAssertEqual(play.label, initialPlaybackLabel, "Playback must resume after pausing")
                 app.swipeUp()
                 XCTAssertTrue(app.staticTexts["真实滑动 A / B"].exists || app.staticTexts["Real Scroll A / B"].exists)
                 app.swipeDown()
