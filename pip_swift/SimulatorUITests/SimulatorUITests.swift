@@ -4,7 +4,7 @@ final class SimulatorUITests: XCTestCase {
     func testLaunchNavigateAndBackgroundForeground() {
         let app = XCUIApplication()
         app.launchArguments = ["-globalRefresh.launchCelebration.seen.1.1.0.tutorial-v7", "YES",
-                               "-globalRefresh.latestChangelog.seen.2.0.5", "YES"]
+                               "-globalRefresh.latestChangelog.seen.2.0.6", "YES"]
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
         let tabs = app.tabBars.firstMatch
@@ -19,7 +19,7 @@ final class SimulatorUITests: XCTestCase {
             tab.tap()
             XCTAssertTrue(tab.isSelected)
             if index == 2 {
-                XCTAssertTrue(app.staticTexts["2.0.5"].waitForExistence(timeout: 8), "About must show the STRA 2.0 release")
+                XCTAssertTrue(app.staticTexts["2.0.6"].waitForExistence(timeout: 8), "About must show the STRA 2.0 release")
                 let openSettings = app.buttons["stra.about.openSettings"]
                 XCTAssertTrue(openSettings.waitForExistence(timeout: 8), "About preferences button must be visible")
                 for _ in 0..<3 where !openSettings.isHittable { app.swipeUp() }
@@ -61,6 +61,16 @@ final class SimulatorUITests: XCTestCase {
                 comparison.buttons.element(boundBy: 1).tap()
                 app.swipeUp()
                 XCTAssertTrue(app.staticTexts["真实滑动 A / B"].exists || app.staticTexts["Real Scroll A / B"].exists)
+                XCTAssertTrue(app.descendants(matching: .any)["stra.motion.modeAResult"].exists)
+                XCTAssertTrue(app.descendants(matching: .any)["stra.motion.modeBResult"].exists)
+                for _ in 0..<3 where !app.buttons["stra.motion.autoScroll"].isHittable { app.swipeUp() }
+                let automatic = app.buttons["stra.motion.autoScroll"]
+                XCTAssertTrue(automatic.waitForExistence(timeout: 5), "Controlled text scroll needs a Start/Stop button")
+                let before = automatic.label
+                automatic.tap()
+                XCTAssertNotEqual(automatic.label, before, "Controlled scroll should visibly start")
+                automatic.tap()
+                XCTAssertEqual(automatic.label, before, "Controlled scroll should visibly stop")
                 app.swipeDown()
             }
             if index == 0 {

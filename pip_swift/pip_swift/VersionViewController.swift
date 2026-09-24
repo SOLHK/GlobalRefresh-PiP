@@ -683,6 +683,18 @@ struct AppChangelogSection {
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
         AppChangelogSection(
+            version: L10n.text("2.0.6 · 可复核的帧率实验室", "2.0.6 · Verifiable Motion Lab"),
+            items: [
+                L10n.text("演示明确标注目标采样而非实测帧率；提示 80/120 抽帧节奏可能不均匀", "Label animation rates as sample targets, with a warning about 80/120 cadence aliasing."),
+                L10n.text("增加同轨迹 60/120 自动文字滚动，以及 1×/2× 运动速度", "Add identical-path 60/120 scripted UIKit text scrolling and 1×/2× motion speeds."),
+                L10n.text("本页新增最近一秒平均/最长回调间隔和大于20ms次数；A/B切换记录稳定样本，相近结果标为无结论", "Show page callback intervals and >20ms gaps; record stable A/B samples and flag inconclusive similarity."),
+                L10n.text("自动对比不是原生手势滚动或屏幕物理刷新率测量，真机功耗/发热/第三方 App 仍待验证", "Scripted motion is not native finger-scroll or physical refresh measurement; device and other-app effects need real testing.")
+            ]
+        )
+    }
+
+    static var version205: AppChangelogSection {
+        AppChangelogSection(
             version: L10n.text("2.0.5 · 双轨对照与真实滑动 A/B", "2.0.5 · Motion & Scroll A/B"),
             items: [
                 L10n.text("同屏加入 30/60/80 与 120 FPS 同速双轨抽帧模拟，差异可切换观察", "Paired 30/60/80 and 120 FPS cadence simulations with matched speeds."),
@@ -1001,6 +1013,7 @@ final class ChangelogViewController: UIViewController {
 
         let stackView = UIStackView(arrangedSubviews: [
             makeSection(section: AppChangelogCatalog.latest),
+            makeSection(section: AppChangelogCatalog.version205),
             makeSection(section: AppChangelogCatalog.version204),
             makeSection(section: AppChangelogCatalog.version203),
             makeSection(section: AppChangelogCatalog.version202),

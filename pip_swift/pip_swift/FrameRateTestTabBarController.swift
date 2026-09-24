@@ -432,6 +432,12 @@ struct RootFrameRateTestView: View {
     @State private var isPlaying = false
     @State private var comparisonLowFPS = 60
     @State private var motionEpoch = Date()
+    @State private var comparisonSpeed = 1
+    @State private var autoScrollEnabled = false
+    @State private var frameMetrics = FrameCallbackMetrics()
+    @State private var adaptiveSnapshot: FrameCallbackMetrics?
+    @State private var highSnapshot: FrameCallbackMetrics?
+    @State private var modeSampleStartedAt = Date()
 
     var body: some View {
         ZStack {
@@ -461,6 +467,16 @@ struct RootFrameRateTestView: View {
                         }
                         Text(L10n.text("本页 DisplayLink 回调频率；不是屏幕实测刷新率，也不代表其他 App 帧率", "This page’s DisplayLink callbacks, not a physical display measurement or other apps’ FPS"))
                             .font(.caption).foregroundStyle(.secondary)
+                        if frameMetrics.callbackFPS > 0 {
+                            Text(String(format: L10n.text("最近 1 秒：平均间隔 %.1f ms · 最大间隔 %.1f ms · 超过 20 ms：%d 次",
+                                                           "Last second: avg %.1f ms · longest %.1f ms · gaps over 20 ms: %d"),
+                                        frameMetrics.averageIntervalMS, frameMetrics.maximumIntervalMS,
+                                        frameMetrics.over20MS))
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .accessibilityIdentifier("stra.motion.frameIntervals")
+                        }
                         Picker(L10n.text("刷新模式", "Refresh mode"), selection: forceRefreshBinding) {
                             Text(L10n.text("系统自适应", "Adaptive")).tag(false)
                             Text(L10n.text("请求高刷", "High refresh")).tag(true)
@@ -485,7 +501,9 @@ struct RootFrameRateTestView: View {
         }
         .background {
             if isVisible {
-                FrameRateDriverView(frameTick: $frameTick, targetFrameRate: isHighRefreshEnabled ? UIScreen.main.maximumFramesPerSecond : 80)
+                FrameRateDriverView(frameTick: $frameTick,
+                                    targetFrameRate: isHighRefreshEnabled ? UIScreen.main.maximumFramesPerSecond : 80,
+                                    onMetrics: { frameMetrics = $0 })
             }
         }
         .onAppear {
@@ -493,18 +511,27 @@ struct RootFrameRateTestView: View {
             isAppActive = UIApplication.shared.applicationState == .active
             isPlaying = !reduceMotion
             motionEpoch = Date()
+            modeSampleStartedAt = Date()
         }
-        .onDisappear { isVisible = false; isPlaying = false; frameTick = 0 }
+        .onDisappear {
+            isVisible = false
+            isPlaying = false
+            autoScrollEnabled = false
+            frameTick = 0
+            frameMetrics = FrameCallbackMetrics()
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
             isAppActive = true
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
             isAppActive = false
             frameTick = 0
+            autoScrollEnabled = false
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
             isAppActive = false
             frameTick = 0
+            autoScrollEnabled = false
         }
         .onChange(of: reduceMotion) { reduced in
             if reduced { isPlaying = false }
@@ -544,6 +571,13 @@ struct RootFrameRateTestView: View {
                         .pickerStyle(.segmented)
                         .accessibilityIdentifier("stra.motion.compareMode")
                         .onChange(of: comparisonLowFPS) { _ in motionEpoch = Date() }
+                        Picker(L10n.text("运动速度", "Motion speed"), selection: $comparisonSpeed) {
+                            Text("1×").tag(1)
+                            Text("2×").tag(2)
+                        }
+                        .pickerStyle(.segmented)
+                        .accessibilityIdentifier("stra.motion.speed")
+                        .onChange(of: comparisonSpeed) { _ in motionEpoch = Date() }
 
                         HStack(spacing: 6) {
                             Circle()
@@ -566,12 +600,12 @@ struct RootFrameRateTestView: View {
                                 motionComparisonLane(
                                     label: L10n.text("模拟低频", "Simulated low"),
                                     sampleRate: comparisonLowFPS, elapsed: elapsed,
-                                    accent: Color(UIColor.systemOrange)
+                                    speed: comparisonSpeed, accent: Color(UIColor.systemOrange)
                                 )
                                 motionComparisonLane(
                                     label: L10n.text("模拟高频", "Simulated high"),
                                     sampleRate: 120, elapsed: elapsed,
-                                    accent: STRAStyle.accent
+                                    speed: comparisonSpeed, accent: STRAStyle.accent
                                 )
                             }
                         }
@@ -579,12 +613,12 @@ struct RootFrameRateTestView: View {
                         .accessibilityIdentifier("stra.motion.compareLanes")
 
                         Text(comparisonLowFPS == 80
-                            ? L10n.text("80 / 120 差距本来较小；先用 30 / 120 看清跳帧，再切回 80 / 120。", "80 vs 120 is subtle. Start with 30 vs 120, then compare 80 vs 120.")
-                            : L10n.text("先盯住蓝色与橙色方块的边缘，再观察移动中的断续感。", "Watch the block edges and cadence while both travel together."))
+                            ? L10n.text("注意：80 不能均匀分配到 120Hz 的刷新周期中，可能产生额外节奏不均；不要将这种抖动理解成真实 80Hz 屏幕表现。", "At 120Hz, 80 samples cannot be evenly spaced across refresh cycles. Uneven cadence here does not prove actual 80Hz appearance.")
+                            : L10n.text("盯住移动的文字和边缘；两轨都以相同距离、速度运动，只有目标位置采样频率不同。", "Watch moving text and edges: same speed and distance, different target sampling cadence."))
                             .font(.caption).foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
 
-                        if !isHighRefreshEnabled || (frameTick > 0 && frameTick < 105) {
+                        if !isHighRefreshEnabled || frameTick == 0 || frameTick < 110 {
                             Label(
                                 L10n.text("当前本页回调不足以完整展示 120 帧；点上方“请求高刷”后重试。",
                                           "This page is not receiving enough callbacks to fully show 120. Select High refresh above."),
@@ -594,8 +628,8 @@ struct RootFrameRateTestView: View {
                             .fixedSize(horizontal: false, vertical: true)
                         }
                         Text(L10n.text(
-                            "这是同屏抽帧模拟对照，不是两块独立运行在不同 Hz 的屏幕；120 帧效果受本页实际回调限制。",
-                            "This is a simulated cadence comparison on one display, not two physical refresh rates. The high lane is limited by actual page callbacks."
+                            "上方 30/60/80/120 均为目标采样档位，不是实测 FPS；同一屏幕展示会受到本页实际回调、系统合成与 80/120 抽帧节奏影响。",
+                            "30/60/80/120 are sampling targets, not measured FPS. Both lanes share one screen; page callbacks, composition and 80/120 cadence aliasing affect the result."
                         ))
                         .font(.caption2).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -639,14 +673,65 @@ struct RootFrameRateTestView: View {
                             .monospacedDigit()
                             .accessibilityIdentifier("stra.motion.scrollFPS")
                         Text(L10n.text(
-                            "两次测试请看文字边缘、数字和分隔线在滑动中是否更连续；系统自适应不等于锁定 80Hz。",
-                            "Compare text edges, numbers and dividers during each swipe. Adaptive does not mean a fixed 80 Hz."
+                            "A 不是固定 80Hz，B 也不是锁定物理 120Hz。切换时会记录上一模式的稳定回调样本；数值接近则此轮无有效差异。",
+                            "A is not fixed 80Hz and B is not a physical 120Hz lock. Switching records the last stable page callback sample; similar readings are inconclusive."
                         ))
                         .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        Text(L10n.text("A：", "A: ") + metricDescription(for: isHighRefreshEnabled ? adaptiveSnapshot : liveMetrics))
+                            .font(.caption.monospacedDigit())
+                            .accessibilityIdentifier("stra.motion.modeAResult")
+                        Text(L10n.text("B：", "B: ") + metricDescription(for: isHighRefreshEnabled ? liveMetrics : highSnapshot))
+                            .font(.caption.monospacedDigit())
+                            .accessibilityIdentifier("stra.motion.modeBResult")
+                        if let a = isHighRefreshEnabled ? adaptiveSnapshot : liveMetrics,
+                           let b = isHighRefreshEnabled ? liveMetrics : highSnapshot {
+                            Text(abs(a.callbackFPS - b.callbackFPS) < 12
+                                 ? L10n.text("本页 A/B 回调频率接近，不能据此证明高刷带来差异。", "A/B page callbacks are similar; this run does not demonstrate a high-refresh improvement.")
+                                 : L10n.text("本页回调频率有差异，但这不是原生滚动内容或其他 App 的实测 FPS。", "Page callback rates differ, but these are not measured native-scroll or other-app FPS."))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.orange)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                     .padding(18)
                     .background(STRAStyle.glassSurface(cornerRadius: 23))
                     .id("stra.motion.scrollStart")
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(L10n.text("自动文字滚动 · 同轨迹", "Auto text scroll · same path"))
+                                .font(.headline)
+                            Spacer(minLength: 6)
+                            Button(autoScrollEnabled ? L10n.text("停止", "Stop") : L10n.text("开始", "Start")) {
+                                autoScrollEnabled.toggle()
+                                UISelectionFeedbackGenerator().selectionChanged()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(reduceMotion || !isHighRefreshEnabled)
+                            .accessibilityIdentifier("stra.motion.autoScroll")
+                        }
+                        Text(L10n.text("左侧模拟每秒 60 次位置更新，右侧模拟每秒 120 次；相同文字、距离和速度。建议先请求高刷。这里是自动移动的 UIKit 文字，不是原生手指滑动帧率测试。",
+                                       "Left simulates 60 position updates/s, right 120, with identical text, distance and speed. Request high refresh first. This is scripted UIKit text motion, not native finger-scroll FPS."))
+                            .font(.caption).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        HStack {
+                            Text(L10n.text("60 目标", "60 target"))
+                            Spacer()
+                            Text(L10n.text("120 目标", "120 target"))
+                        }
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        ControlledTextScrollComparisonView(isPlaying: autoScrollEnabled && isVisible && isAppActive && !reduceMotion && isHighRefreshEnabled)
+                            .frame(height: 170)
+                            .accessibilityIdentifier("stra.motion.autoScrollLanes")
+                        if frameTick < 110 {
+                            Text(L10n.text("本页回调未稳定达到 110 次/秒，右侧可能无法展示完整的 120 目标效果。", "Page callbacks are below 110/s; the 120-target lane may not be fully displayed."))
+                                .font(.caption).foregroundStyle(.orange)
+                        }
+                    }
+                    .padding(18)
+                    .background(STRAStyle.glassSurface(cornerRadius: 23))
 
                     LazyVStack(spacing: 0) {
                         ForEach(0..<28, id: \.self) { index in
@@ -696,9 +781,10 @@ struct RootFrameRateTestView: View {
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
-    private func motionComparisonLane(label: String, sampleRate: Int, elapsed: TimeInterval, accent: Color) -> some View {
+    private func motionComparisonLane(label: String, sampleRate: Int, elapsed: TimeInterval,
+                                      speed: Int, accent: Color) -> some View {
         let sampled = floor(elapsed * Double(sampleRate)) / Double(sampleRate)
-        let cycle = sampled.truncatingRemainder(dividingBy: 2.4)
+        let cycle = (sampled * Double(speed)).truncatingRemainder(dividingBy: 2.4)
         let progress = cycle <= 1.2 ? cycle / 1.2 : (2.4 - cycle) / 1.2
         return VStack(alignment: .leading, spacing: 9) {
             HStack {
@@ -723,6 +809,11 @@ struct RootFrameRateTestView: View {
                     RoundedRectangle(cornerRadius: 11)
                         .fill(accent)
                         .frame(width: 42, height: 42)
+                        .overlay {
+                            Text("STRA")
+                                .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                                .foregroundStyle(Color.white)
+                        }
                         .offset(x: travel * CGFloat(progress))
                 }
                 .frame(maxHeight: .infinity)
@@ -732,10 +823,29 @@ struct RootFrameRateTestView: View {
         .accessibilityElement(children: .combine)
     }
 
+    private var liveMetrics: FrameCallbackMetrics? {
+        frameMetrics.callbackFPS > 0 && Date().timeIntervalSince(modeSampleStartedAt) >= 1.5
+            ? frameMetrics : nil
+    }
+
+    private func metricDescription(for metric: FrameCallbackMetrics?) -> String {
+        guard let metric = metric else { return L10n.text("等待至少 1.5 秒样本", "Wait for a sample of at least 1.5 s") }
+        return String(format: L10n.text("%d 回调/秒 · 最大间隔 %.1f ms", "%d callbacks/s · longest %.1f ms"),
+                      metric.callbackFPS, metric.maximumIntervalMS)
+    }
+
     private var forceRefreshBinding: Binding<Bool> {
         Binding(get: { isHighRefreshEnabled }, set: { value in
+            guard value != isHighRefreshEnabled else { return }
+            if let valid = liveMetrics {
+                if isHighRefreshEnabled { highSnapshot = valid }
+                else { adaptiveSnapshot = valid }
+            }
             isHighRefreshEnabled = value
             frameTick = 0
+            frameMetrics = FrameCallbackMetrics()
+            modeSampleStartedAt = Date()
+            autoScrollEnabled = false
             UISelectionFeedbackGenerator().selectionChanged()
             NotificationCenter.default.post(name: FrameRatePreference.didChangeNotification, object: nil)
         })
@@ -978,9 +1088,17 @@ private struct FrameRateScrollOffsetPreferenceKey: PreferenceKey {
     }
 }
 
+private struct FrameCallbackMetrics: Equatable {
+    var callbackFPS = 0
+    var averageIntervalMS = 0.0
+    var maximumIntervalMS = 0.0
+    var over20MS = 0
+}
+
 private struct FrameRateDriverView: UIViewRepresentable {
     @Binding var frameTick: Int
     let targetFrameRate: Int
+    var onMetrics: ((FrameCallbackMetrics) -> Void)? = nil
 
     func makeUIView(context: Context) -> UIView {
         let view = UIView()
@@ -994,12 +1112,14 @@ private struct FrameRateDriverView: UIViewRepresentable {
         configure(displayLink)
         displayLink.add(to: .main, forMode: .common)
         context.coordinator.displayLink = displayLink
+        context.coordinator.onMetrics = onMetrics
         context.coordinator.installObservers()
         context.coordinator.updatePausedState()
         return view
     }
 
     func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.onMetrics = onMetrics
         if let displayLink = context.coordinator.displayLink {
             configure(displayLink)
             context.coordinator.updatePausedState()
@@ -1041,6 +1161,12 @@ private struct FrameRateDriverView: UIViewRepresentable {
         private var didInstallObservers = false
         private var measurementStart: CFTimeInterval = 0
         private var measurementFrames = 0
+        private var lastTimestamp: CFTimeInterval = 0
+        private var intervalSum: Double = 0
+        private var intervalMaximum: Double = 0
+        private var intervalCount = 0
+        private var gapsOver20MS = 0
+        var onMetrics: ((FrameCallbackMetrics) -> Void)?
 
         init(frameTick: Binding<Int>) {
             self.frameTick = frameTick
@@ -1057,7 +1183,15 @@ private struct FrameRateDriverView: UIViewRepresentable {
 
         @objc func updatePausedState() {
             displayLink?.isPaused = UIApplication.shared.applicationState != .active
-            if displayLink?.isPaused == true { measurementStart = 0; measurementFrames = 0 }
+            if displayLink?.isPaused == true {
+                measurementStart = 0
+                measurementFrames = 0
+                lastTimestamp = 0
+                intervalSum = 0
+                intervalMaximum = 0
+                intervalCount = 0
+                gapsOver20MS = 0
+            }
         }
 
         @objc func step() {
@@ -1066,13 +1200,36 @@ private struct FrameRateDriverView: UIViewRepresentable {
                 return
             }
             guard let link = displayLink else { return }
-            if measurementStart == 0 { measurementStart = link.timestamp; return }
+            if measurementStart == 0 {
+                measurementStart = link.timestamp
+                lastTimestamp = link.timestamp
+                return
+            }
+            let interval = link.timestamp - lastTimestamp
+            lastTimestamp = link.timestamp
+            if interval > 0 && interval < 1 {
+                intervalSum += interval
+                intervalMaximum = max(intervalMaximum, interval)
+                intervalCount += 1
+                if interval > 0.020 { gapsOver20MS += 1 }
+            }
             measurementFrames += 1
             let elapsed = link.timestamp - measurementStart
-            guard elapsed >= 0.5 else { return }
-            frameTick.wrappedValue = Int((Double(measurementFrames) / elapsed).rounded())
+            guard elapsed >= 1.0 else { return }
+            let callbacks = Int((Double(measurementFrames) / elapsed).rounded())
+            frameTick.wrappedValue = callbacks
+            onMetrics?(FrameCallbackMetrics(
+                callbackFPS: callbacks,
+                averageIntervalMS: intervalCount > 0 ? intervalSum * 1000 / Double(intervalCount) : 0,
+                maximumIntervalMS: intervalMaximum * 1000,
+                over20MS: gapsOver20MS
+            ))
             measurementStart = link.timestamp
             measurementFrames = 0
+            intervalSum = 0
+            intervalMaximum = 0
+            intervalCount = 0
+            gapsOver20MS = 0
         }
     }
 }
@@ -1118,6 +1275,127 @@ private struct FrameRateGlassIconButtonStyle: ButtonStyle {
         } else {
             shape
                 .fill(Color(UIColor.secondarySystemBackground).opacity(isPressed ? 0.86 : 0.68))
+        }
+    }
+}
+
+
+// A deliberate, comparable text-motion demonstration. These labels indicate target position
+// sampling, not physical display refresh or native UIScrollView finger-scroll FPS.
+private struct ControlledTextScrollComparisonView: UIViewRepresentable {
+    let isPlaying: Bool
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> UIView {
+        let container = UIView()
+        container.backgroundColor = .clear
+        let left = makeTextScroll()
+        let right = makeTextScroll()
+        let stack = UIStackView(arrangedSubviews: [left, right])
+        stack.axis = .horizontal
+        stack.distribution = .fillEqually
+        stack.spacing = 10
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            stack.topAnchor.constraint(equalTo: container.topAnchor),
+            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+        ])
+        context.coordinator.attach(low: left, high: right)
+        context.coordinator.setPlaying(isPlaying)
+        return container
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.setPlaying(isPlaying && UIApplication.shared.applicationState == .active)
+    }
+
+    static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
+        coordinator.stop()
+    }
+
+    private func makeTextScroll() -> UIScrollView {
+        let scroll = UIScrollView()
+        scroll.isUserInteractionEnabled = false
+        scroll.showsVerticalScrollIndicator = false
+        scroll.backgroundColor = UIColor.secondarySystemGroupedBackground.withAlphaComponent(0.55)
+        scroll.layer.cornerRadius = 14
+        scroll.clipsToBounds = true
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.font = UIFont.monospacedSystemFont(ofSize: 12, weight: .medium)
+        label.textColor = .label
+        label.numberOfLines = 0
+        label.text = (1...48).map { String(format: "%02d  STRA  0123456789", $0) }.joined(separator: "\n")
+        scroll.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor, constant: 8),
+            label.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: -8),
+            label.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: 12),
+            label.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -12),
+            label.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -16)
+        ])
+        return scroll
+    }
+
+    final class Coordinator: NSObject {
+        private weak var low: UIScrollView?
+        private weak var high: UIScrollView?
+        private var displayLink: CADisplayLink?
+        private var startTime: CFTimeInterval = 0
+        private var playing = false
+
+        func attach(low: UIScrollView, high: UIScrollView) {
+            self.low = low
+            self.high = high
+            let link = CADisplayLink(target: self, selector: #selector(tick(_:)))
+            let limit = min(120, UIScreen.main.maximumFramesPerSecond)
+            if #available(iOS 15.0, *) {
+                link.preferredFrameRateRange = CAFrameRateRange(
+                    minimum: 30, maximum: Float(limit), preferred: Float(limit)
+                )
+            } else {
+                link.preferredFramesPerSecond = limit
+            }
+            link.add(to: .main, forMode: .common)
+            link.isPaused = true
+            displayLink = link
+        }
+
+        func setPlaying(_ active: Bool) {
+            guard active != playing else { return }
+            playing = active
+            startTime = 0
+            if !active {
+                low?.setContentOffset(.zero, animated: false)
+                high?.setContentOffset(.zero, animated: false)
+            }
+            displayLink?.isPaused = !active
+        }
+
+        @objc private func tick(_ link: CADisplayLink) {
+            guard playing, let low = low, let high = high else { return }
+            if startTime == 0 { startTime = link.timestamp }
+            let elapsed = max(0, link.timestamp - startTime)
+            move(low, sampledTime: floor(elapsed * 60) / 60)
+            move(high, sampledTime: floor(elapsed * 120) / 120)
+        }
+
+        private func move(_ scroll: UIScrollView, sampledTime: TimeInterval) {
+            let distance = max(0, scroll.contentSize.height - scroll.bounds.height)
+            let cycle = sampledTime.truncatingRemainder(dividingBy: 6)
+            let progress = cycle <= 3 ? cycle / 3 : (6 - cycle) / 3
+            scroll.setContentOffset(CGPoint(x: 0, y: distance * CGFloat(progress)), animated: false)
+        }
+
+        func stop() {
+            displayLink?.invalidate()
+            displayLink = nil
+            low = nil
+            high = nil
         }
     }
 }
