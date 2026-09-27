@@ -145,7 +145,7 @@ final class PowerLifecycleTests: XCTestCase {
         NotificationCenter.default.removeObserver(tabs)
     }
 
-    func testMainRefreshDriverRestartsOnUnlockWithoutForegroundActivation() {
+    func testMainRefreshDriverResumesWhenPiPDemandReturnsAfterUnlock() {
         let tabs = MainTabBarController()
         tabs.loadViewIfNeeded()
         let home = tabs.viewControllers!.first as! ViewController
@@ -156,6 +156,16 @@ final class PowerLifecycleTests: XCTestCase {
         XCTAssertFalse(tabs.simulatorHasRefreshDriver)
         // Do not send UIApplication.didBecomeActiveNotification or visit the app.
         unlock()
+        XCTAssertFalse(home.shouldPauseForPower)
+        XCTAssertEqual(home.simulatorSnapshot.restartAttempts, 1)
+        if !AVPictureInPictureController.isPictureInPictureSupported() {
+            // This runtime cannot restart real PiP. A failed restart must not
+            // leave an idle high-refresh driver running. Then supply the same
+            // demand notification a successful startup transition would emit.
+            XCTAssertFalse(home.needsBackgroundRefreshDriver)
+            XCTAssertFalse(tabs.simulatorHasRefreshDriver)
+            home.simulatorSeedStartingSession(height: 0.1)
+        }
         XCTAssertTrue(tabs.simulatorHasRefreshDriver)
         home.stopForFullDataReset()
         NotificationCenter.default.removeObserver(home)
