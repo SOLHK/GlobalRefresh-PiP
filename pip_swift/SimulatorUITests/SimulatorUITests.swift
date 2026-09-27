@@ -4,7 +4,7 @@ final class SimulatorUITests: XCTestCase {
     func testLaunchNavigateAndBackgroundForeground() {
         let app = XCUIApplication()
         app.launchArguments = ["-globalRefresh.launchCelebration.seen.1.1.0.tutorial-v7", "YES",
-                               "-globalRefresh.latestChangelog.seen.2.0.6", "YES"]
+                               "-globalRefresh.latestChangelog.seen.2.0.7", "YES"]
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
         let tabs = app.tabBars.firstMatch
@@ -19,7 +19,7 @@ final class SimulatorUITests: XCTestCase {
             tab.tap()
             XCTAssertTrue(tab.isSelected)
             if index == 2 {
-                XCTAssertTrue(app.staticTexts["2.0.6"].waitForExistence(timeout: 8), "About must show the STRA 2.0 release")
+                XCTAssertTrue(app.staticTexts["2.0.7"].waitForExistence(timeout: 8), "About must show the STRA 2.0 release")
                 let openSettings = app.buttons["stra.about.openSettings"]
                 XCTAssertTrue(openSettings.waitForExistence(timeout: 8), "About preferences button must be visible")
                 for _ in 0..<3 where !openSettings.isHittable { app.swipeUp() }

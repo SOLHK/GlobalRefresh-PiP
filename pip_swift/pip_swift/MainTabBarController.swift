@@ -364,9 +364,13 @@ final class MainTabBarController: UITabBarController, UITabBarControllerDelegate
             stopRefreshDriver(reason: "PlayerLayer/extreme silent route active")
             return
         }
+        guard FrameRatePreference.isHighRefreshEnabled else {
+            stopRefreshDriver(reason: "system adaptive mode")
+            return
+        }
         let needsBackgroundDriver = floatingWindowController?.needsBackgroundRefreshDriver ?? false
-        guard UIApplication.shared.applicationState != .background || needsBackgroundDriver else {
-            stopRefreshDriver(reason: "background without a PiP session")
+        guard needsBackgroundDriver else {
+            stopRefreshDriver(reason: "no PiP session or transition")
             return
         }
 
@@ -385,7 +389,7 @@ final class MainTabBarController: UITabBarController, UITabBarControllerDelegate
         refreshDisplayLink = displayLink
         refreshDriverSampleStartedAt = 0
         refreshDriverSampleCallbacks = 0
-        AppDebugLogger.logCritical("RefreshDriver started: reason=\(reason), background=\(UIApplication.shared.applicationState == .background), PiP=\(needsBackgroundDriver), requested=\(min(FrameRatePreference.targetFrameRate, UIScreen.main.maximumFramesPerSecond))Hz")
+        AppDebugLogger.logCritical("RefreshDriver started: reason=\(reason), background=\(UIApplication.shared.applicationState == .background), PiP=\(needsBackgroundDriver), requested=\(min(120, UIScreen.main.maximumFramesPerSecond))Hz")
     }
 
     private func stopRefreshDriver(reason: String) {
@@ -575,7 +579,7 @@ final class MainTabBarController: UITabBarController, UITabBarControllerDelegate
 
     private func configureRefreshDriver(_ displayLink: CADisplayLink) {
         let maximumFramesPerSecond = UIScreen.main.maximumFramesPerSecond
-        let targetFramesPerSecond = min(FrameRatePreference.targetFrameRate, maximumFramesPerSecond)
+        let targetFramesPerSecond = min(120, maximumFramesPerSecond)
 
         if #available(iOS 15.0, *) {
             let target = Float(targetFramesPerSecond)

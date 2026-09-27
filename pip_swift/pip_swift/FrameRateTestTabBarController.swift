@@ -21,10 +21,6 @@ enum FrameRatePreference {
         return UserDefaults.standard.bool(forKey: force120HzKey)
     }
 
-    static var targetFrameRate: Int {
-        isHighRefreshEnabled ? 120 : 80
-    }
-
     // 帧率检测完美方案：关闭强制120时 preferred 必须回到 0，让系统自适应，避免误判和干涉其它 App。
     static func preferredFrameRateValue(target: Float) -> Float {
         isHighRefreshEnabled ? target : 0
@@ -57,10 +53,7 @@ enum FrameRatePreference {
     }
 
     static var previewTarget: Float {
-        let maximumFramesPerSecond = Float(UIScreen.main.maximumFramesPerSecond)
-        return isHighRefreshEnabled
-            ? max(60, maximumFramesPerSecond)
-            : min(Float(targetFrameRate), maximumFramesPerSecond)
+        max(60, Float(UIScreen.main.maximumFramesPerSecond))
     }
 
     static var customValues: FrameRateExperimentCustomValues {
@@ -502,7 +495,7 @@ struct RootFrameRateTestView: View {
         .background {
             if isVisible {
                 FrameRateDriverView(frameTick: $frameTick,
-                                    targetFrameRate: isHighRefreshEnabled ? UIScreen.main.maximumFramesPerSecond : 80,
+                                    targetFrameRate: UIScreen.main.maximumFramesPerSecond,
                                     onMetrics: { frameMetrics = $0 })
             }
         }
@@ -1138,13 +1131,10 @@ private struct FrameRateDriverView: UIViewRepresentable {
 
     private func configure(_ displayLink: CADisplayLink) {
         let maximumFramesPerSecond = UIScreen.main.maximumFramesPerSecond
-        let requestedFrameRate = FrameRatePreference.isHighRefreshEnabled
-            ? targetFrameRate
-            : min(targetFrameRate, FrameRatePreference.targetFrameRate)
-        let targetFramesPerSecond = min(requestedFrameRate, maximumFramesPerSecond)
+        let targetFramesPerSecond = min(targetFrameRate, maximumFramesPerSecond)
         if #available(iOS 15.0, *) {
             let target = Float(targetFramesPerSecond)
-            // 1.0.8 fix2: 演示页要稳定跑到页面目标帧率；关闭强制120时目标会先被限制到80。
+            // Adaptive mode releases the preferred rate without imposing an 80 Hz ceiling.
             displayLink.preferredFrameRateRange = CAFrameRateRange(
                 minimum: 30,
                 maximum: target,

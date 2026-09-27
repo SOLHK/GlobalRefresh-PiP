@@ -170,6 +170,7 @@ struct PiPHomeView: View {
     @State private var languageRefreshToken = 0
     @AppStorage(L10n.languageOverrideKey) private var languageOverrideRawValue = ""
     @AppStorage(PiPShortcutFeatureAccess.enabledKey) private var shortcutFeaturesEnabled = false
+    @AppStorage(FrameRatePreference.force120HzKey) private var isHighRefreshEnabled = true
     @AppStorage(FrameRatePreference.experimentProfileKey) private var frameRateExperimentProfileRawValue = FrameRateExperimentProfile.followSwitch.rawValue
     @AppStorage("frameRateDemo.customMinimum") private var customFrameRateMinimum: Double = 30
     @AppStorage("frameRateDemo.customMaximum") private var customFrameRateMaximum: Double = 120
@@ -247,19 +248,23 @@ struct PiPHomeView: View {
                                 .foregroundColor(Color(UIColor.secondaryLabel))
                             Spacer(minLength: 0)
                             Circle()
-                                .fill(isPiPActive ? STRAStyle.accent : Color(UIColor.tertiaryLabel))
+                                .fill(isPiPActive && isHighRefreshEnabled ? STRAStyle.accent : Color(UIColor.tertiaryLabel))
                                 .frame(width: 7, height: 7)
-                                .scaleEffect(isPiPActive && !reduceMotion ? 1.18 : 1)
-                            Text(isPiPActive ? L10n.text("已连接", "LIVE") : L10n.text("待机", "STANDBY"))
+                                .scaleEffect(isPiPActive && isHighRefreshEnabled && !reduceMotion ? 1.18 : 1)
+                            Text(isPiPActive
+                                 ? (isHighRefreshEnabled ? L10n.text("高刷请求中", "HIGH REFRESH") : L10n.text("系统自适应", "ADAPTIVE"))
+                                 : L10n.text("按需待机", "ON DEMAND"))
                                 .font(.system(size: 10, weight: .bold, design: .monospaced))
                                 .foregroundColor(Color(UIColor.secondaryLabel))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
                         }
                         .padding(.horizontal, 3)
                         PrimaryPiPButton(
                             title: isPiPActive ? startAndHidePiPButtonTitle : L10n.text("开启悬浮窗", "Start Floating Window"),
                             subtitle: isPiPActive
                                 ? L10n.text("吸附到侧边后，一键收起", "Dock to the edge, then minimize")
-                                : L10n.text("启动画中画 · 开启刷新", "Launch PiP · Enable refresh"),
+                                : L10n.text("启动画中画后按需请求高刷", "Request high refresh only while PiP runs"),
                             isActive: isPiPActive
                         ) {
                             runAfterDismissingSettings(isPiPActive ? onStartAndHidePiP : onTogglePiP)
@@ -586,6 +591,28 @@ struct PiPHomeView: View {
             Rectangle()
                 .fill(Color(UIColor.separator).opacity(0.16))
                 .frame(height: 0.5)
+            HStack(spacing: 10) {
+                Image(systemName: !isPiPActive ? "leaf" : isHighRefreshEnabled ? "bolt.fill" : "slider.horizontal.3")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(STRAStyle.accent)
+                    .frame(width: 25, height: 25)
+                    .background(STRAStyle.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(!isPiPActive ? L10n.text("空闲节能", "Idle savings")
+                         : isHighRefreshEnabled ? L10n.text("画中画高刷请求", "PiP high refresh request")
+                         : L10n.text("画中画系统自适应", "PiP system adaptive"))
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(Color(UIColor.label))
+                    Text(!isPiPActive ? L10n.text("无需持续运行刷新驱动", "Refresh driver stops until needed")
+                         : isHighRefreshEnabled ? L10n.text("请求最高 120 Hz · 实际由系统决定", "Up to 120 Hz requested · system decides")
+                         : L10n.text("不强制高刷 · 由系统调度", "No forced refresh · system scheduled"))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Color(UIColor.secondaryLabel))
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 0)
+            }
+            .accessibilityElement(children: .combine)
             HStack(spacing: 7) {
                 Image(systemName: "circle.grid.2x2")
                     .font(.system(size: 12, weight: .semibold))
@@ -3722,4 +3749,3 @@ private struct LiquidGlassButtonStyle: ButtonStyle {
         )
     }
 }
-

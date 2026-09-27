@@ -136,6 +136,8 @@ final class PowerLifecycleTests: XCTestCase {
         tabs.loadViewIfNeeded()
         let home = tabs.viewControllers!.first as! ViewController
         home.loadViewIfNeeded()
+        home.simulatorSeedStartingSession(height: 0.1)
+        XCTAssertTrue(tabs.simulatorHasRefreshDriver)
         lock()
         XCTAssertFalse(tabs.simulatorHasRefreshDriver)
         home.stopForFullDataReset()
@@ -148,12 +150,39 @@ final class PowerLifecycleTests: XCTestCase {
         tabs.loadViewIfNeeded()
         let home = tabs.viewControllers!.first as! ViewController
         home.loadViewIfNeeded()
+        home.simulatorSeedStartingSession(height: 0.1)
         XCTAssertTrue(tabs.simulatorHasRefreshDriver)
         lock()
         XCTAssertFalse(tabs.simulatorHasRefreshDriver)
         // Do not send UIApplication.didBecomeActiveNotification or visit the app.
         unlock()
         XCTAssertTrue(tabs.simulatorHasRefreshDriver)
+        home.stopForFullDataReset()
+        NotificationCenter.default.removeObserver(home)
+        NotificationCenter.default.removeObserver(tabs)
+    }
+
+    func testMainRefreshDriverRunsOnlyForHighRefreshPiPDemand() {
+        let previousMode = UserDefaults.standard.object(forKey: FrameRatePreference.force120HzKey)
+        UserDefaults.standard.set(true, forKey: FrameRatePreference.force120HzKey)
+        defer {
+            if let previousMode {
+                UserDefaults.standard.set(previousMode, forKey: FrameRatePreference.force120HzKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: FrameRatePreference.force120HzKey)
+            }
+            NotificationCenter.default.post(name: FrameRatePreference.didChangeNotification, object: nil)
+        }
+        let tabs = MainTabBarController()
+        tabs.loadViewIfNeeded()
+        let home = tabs.viewControllers!.first as! ViewController
+        home.loadViewIfNeeded()
+        XCTAssertFalse(tabs.simulatorHasRefreshDriver, "Idle home must not request 120 Hz")
+        home.simulatorSeedStartingSession(height: 0.1)
+        XCTAssertTrue(tabs.simulatorHasRefreshDriver)
+        UserDefaults.standard.set(false, forKey: FrameRatePreference.force120HzKey)
+        NotificationCenter.default.post(name: FrameRatePreference.didChangeNotification, object: nil)
+        XCTAssertFalse(tabs.simulatorHasRefreshDriver, "Adaptive mode must release the forced driver")
         home.stopForFullDataReset()
         NotificationCenter.default.removeObserver(home)
         NotificationCenter.default.removeObserver(tabs)
@@ -231,4 +260,3 @@ final class PowerLifecycleTests: XCTestCase {
         XCTAssertTrue(controller.simulatorSnapshot.actualPiPActive, "PiP claims support but did not start in the simulator; inspect runtime logs.")
     }
 }
-

@@ -3437,6 +3437,7 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
         guard scrollDisplayLink == nil else { return }
 
         let scrollDisplayLink = CADisplayLink(target: self, selector: #selector(updateScrollingText(_:)))
+        configureScrollDisplayLink(scrollDisplayLink)
         scrollDisplayLink.add(to: .main, forMode: .default)
         lastScrollTimestamp = nil
         self.scrollDisplayLink = scrollDisplayLink
@@ -3583,12 +3584,28 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
             stopDisplayLinks()
             return
         }
-        lastScrollTimestamp = displayLink.timestamp
+        defer { lastScrollTimestamp = displayLink.timestamp }
+        guard let previous = lastScrollTimestamp else { return }
+        let elapsed = displayLink.timestamp - previous
+        guard elapsed > 0 else { return }
+        let maximumOffset = max(0, textView.contentSize.height - textView.bounds.height)
+        guard maximumOffset > 0 else { return }
+        // Time-based motion stays at the same speed on 60 and 120 Hz devices.
+        // Clamp the first callback after a stall to avoid a visible jump.
+        let nextOffset = textView.contentOffset.y + CGFloat(min(elapsed, 1.0 / 15.0) * 60)
+        textView.contentOffset = CGPoint(x: 0, y: nextOffset > maximumOffset ? 0 : nextOffset)
+    }
 
-        let offsetY = textView.contentOffset.y
-        textView.contentOffset = CGPoint(x: 0, y: offsetY + 1)
-        if textView.contentOffset.y > textView.contentSize.height {
-            textView.contentOffset = .zero
+    private func configureScrollDisplayLink(_ displayLink: CADisplayLink) {
+        let maximum = min(UIScreen.main.maximumFramesPerSecond,
+                          FrameRatePreference.isHighRefreshEnabled ? 120 : 60)
+        if #available(iOS 15.0, *) {
+            displayLink.preferredFrameRateRange = CAFrameRateRange(
+                minimum: 30, maximum: Float(maximum),
+                preferred: FrameRatePreference.isHighRefreshEnabled ? Float(maximum) : 0
+            )
+        } else {
+            displayLink.preferredFramesPerSecond = maximum
         }
     }
 
@@ -3616,11 +3633,8 @@ class ViewController: UIViewController, AVPictureInPictureControllerDelegate {
             pendingMeasuredPiPFPSCount = 0
             pendingMeasuredPiPFPSStartedAt = nil
             lastClockOverlayFPSText = ""
-            if !FrameRatePreference.isHighRefreshEnabled, measuredPiPFPS > FrameRatePreference.targetFrameRate {
-                measuredPiPFPS = FrameRatePreference.targetFrameRate
-                updateClockOverlay(timestamp: CACurrentMediaTime(), forceNetworkSample: true)
-            }
         }
+        if let scrollDisplayLink { configureScrollDisplayLink(scrollDisplayLink) }
         if !FrameRatePreference.isHighRefreshEnabled {
             stopPlayerLayerActivityDisplayLink(reason: "强制120关闭")
             playerLayer?.player?.pause()
@@ -6498,4 +6512,3 @@ private enum PlaceholderVideoFactory {
 		    }
 
 		}
-

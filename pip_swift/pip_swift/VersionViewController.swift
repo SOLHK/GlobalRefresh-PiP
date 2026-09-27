@@ -683,6 +683,18 @@ struct AppChangelogSection {
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
         AppChangelogSection(
+            version: L10n.text("2.0.7 · 按需高刷与省电状态", "2.0.7 · On-Demand Refresh"),
+            items: [
+                L10n.text("无画中画需求时停止主高刷驱动；系统自适应模式撤销强制请求", "Stop the main refresh driver without PiP demand; release forced requests in adaptive mode."),
+                L10n.text("画中画文字滚动按时间计算速度，60/120 Hz 下保持一致", "Use time-based PiP text scrolling for consistent speed at 60/120 Hz."),
+                L10n.text("首页显示请求和空闲节能状态；实验室自适应对照不再限制在 80 Hz", "Show refresh and idle states on Home; remove the 80 Hz cap from the adaptive comparison."),
+                L10n.text("请求帧率不等于屏幕实测或其他 App 帧率；功耗效果需真机对照", "Requested refresh is not measured display or other-app FPS; compare power on a real device.")
+            ]
+        )
+    }
+
+    static var version206: AppChangelogSection {
+        AppChangelogSection(
             version: L10n.text("2.0.6 · 可复核的帧率实验室", "2.0.6 · Verifiable Motion Lab"),
             items: [
                 L10n.text("演示明确标注目标采样而非实测帧率；提示 80/120 抽帧节奏可能不均匀", "Label animation rates as sample targets, with a warning about 80/120 cadence aliasing."),
@@ -1013,6 +1025,7 @@ final class ChangelogViewController: UIViewController {
 
         let stackView = UIStackView(arrangedSubviews: [
             makeSection(section: AppChangelogCatalog.latest),
+            makeSection(section: AppChangelogCatalog.version206),
             makeSection(section: AppChangelogCatalog.version205),
             makeSection(section: AppChangelogCatalog.version204),
             makeSection(section: AppChangelogCatalog.version203),
@@ -1548,4 +1561,3 @@ private final class FAQViewController: UIViewController {
         return stack
     }
 }
-
