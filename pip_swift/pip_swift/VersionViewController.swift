@@ -32,22 +32,35 @@ struct AppUpdateInfo {
     let releaseURL: URL
     let releaseNotes: [String]
     let githubReleasesURL: URL
+    let ipaURL: URL?
 
     var latestVersion: String { version }
 }
 
 enum AppUpdateChecker {
+    private struct Asset: Decodable {
+        let name: String
+        let browserDownloadURL: URL
+
+        enum CodingKeys: String, CodingKey {
+            case name
+            case browserDownloadURL = "browser_download_url"
+        }
+    }
+
     private struct Release: Decodable {
         let tagName: String
         let body: String?
         let htmlURL: URL
         let isDraft: Bool
+        let assets: [Asset]
 
         enum CodingKeys: String, CodingKey {
             case tagName = "tag_name"
             case body
             case htmlURL = "html_url"
             case isDraft = "draft"
+            case assets
         }
     }
 
@@ -134,7 +147,12 @@ enum AppUpdateChecker {
                             notes: release.body ?? "",
                             releaseURL: release.htmlURL,
                             releaseNotes: releaseNotes(from: release.body ?? ""),
-                            githubReleasesURL: githubReleasesURL
+                            githubReleasesURL: githubReleasesURL,
+                            ipaURL: release.assets.first(where: {
+                                $0.name.lowercased().hasPrefix("stra-refresh-")
+                                    && $0.name.lowercased().hasSuffix(".ipa")
+                                    && $0.browserDownloadURL.host == "github.com"
+                            })?.browserDownloadURL
                         )
                         : nil
                     result = .success(update)
@@ -683,6 +701,16 @@ struct AppChangelogSection {
 enum AppChangelogCatalog {
     static var latest: AppChangelogSection {
         AppChangelogSection(
+            version: L10n.text("2.0.8 · 下载更新", "2.0.8 · Download Updates"),
+            items: [
+                L10n.text("发现新版本后可下载 GitHub 发布的 IPA，并通过系统分享交给 LCSign 签名安装", "Download a released IPA and share it to LCSign for signing and installation."),
+                L10n.text("安装仍需在 LCSign 中确认，保持原签名与应用标识以覆盖更新", "Confirm installation in LCSign using the same signing identity and app identifier to update in place.")
+            ]
+        )
+    }
+
+    static var version207: AppChangelogSection {
+        AppChangelogSection(
             version: L10n.text("2.0.7 · 按需高刷与省电状态", "2.0.7 · On-Demand Refresh"),
             items: [
                 L10n.text("无画中画需求时停止主高刷驱动；系统自适应模式撤销强制请求", "Stop the main refresh driver without PiP demand; release forced requests in adaptive mode."),
@@ -1025,6 +1053,7 @@ final class ChangelogViewController: UIViewController {
 
         let stackView = UIStackView(arrangedSubviews: [
             makeSection(section: AppChangelogCatalog.latest),
+            makeSection(section: AppChangelogCatalog.version207),
             makeSection(section: AppChangelogCatalog.version206),
             makeSection(section: AppChangelogCatalog.version205),
             makeSection(section: AppChangelogCatalog.version204),
@@ -1192,6 +1221,8 @@ final class ChangelogViewController: UIViewController {
 private final class UpdateAvailableViewController: UIViewController {
     private let update: AppUpdateInfo
     private let onSkipUpdate: (AppUpdateInfo) -> Void
+    private var downloadTask: URLSessionDownloadTask?
+    private var downloadButton: UIButton?
 
     init(update: AppUpdateInfo, onSkipUpdate: @escaping (AppUpdateInfo) -> Void) {
         self.update = update
@@ -1261,14 +1292,18 @@ private final class UpdateAvailableViewController: UIViewController {
         scrollView.addSubview(items)
         card.addSubview(scrollView)
 
-        let githubButton = makeLinkButton(title: "GitHub")
+        let githubButton = makeLinkButton(title: L10n.text("查看发布页面", "View release page"))
         githubButton.addTarget(self, action: #selector(openGitHub), for: .touchUpInside)
+        let downloadButton = makeLinkButton(title: L10n.text("下载 IPA · 分享到 LCSign", "Download IPA · Share to LCSign"), primary: true)
+        downloadButton.addTarget(self, action: #selector(downloadIPA), for: .touchUpInside)
+        downloadButton.isHidden = update.ipaURL == nil
+        self.downloadButton = downloadButton
         let skipButton = makeLinkButton(title: L10n.text("跳过本次更新", "Skip This Update"))
         skipButton.addTarget(self, action: #selector(skipTapped), for: .touchUpInside)
-        let laterButton = makeLinkButton(title: L10n.text("稍后", "Later"), primary: true)
+        let laterButton = makeLinkButton(title: L10n.text("稍后", "Later"))
         laterButton.addTarget(self, action: #selector(dismissTapped), for: .touchUpInside)
 
-        let buttons = UIStackView(arrangedSubviews: [githubButton, skipButton, laterButton])
+        let buttons = UIStackView(arrangedSubviews: [downloadButton, githubButton, skipButton, laterButton])
         buttons.axis = .vertical
         buttons.spacing = 6
         card.addSubview(buttons)
@@ -1303,6 +1338,7 @@ private final class UpdateAvailableViewController: UIViewController {
             buttons.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 22),
             buttons.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -22),
             buttons.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -16),
+            downloadButton.heightAnchor.constraint(equalToConstant: 42),
             githubButton.heightAnchor.constraint(equalToConstant: 42),
             skipButton.heightAnchor.constraint(equalToConstant: 42),
             laterButton.heightAnchor.constraint(equalToConstant: 42)
@@ -1338,7 +1374,47 @@ private final class UpdateAvailableViewController: UIViewController {
     }
 
     @objc private func openGitHub() {
-        UIApplication.shared.open(update.githubReleasesURL)
+        UIApplication.shared.open(update.releaseURL)
+    }
+
+    @objc private func downloadIPA() {
+        guard let url = update.ipaURL, downloadTask == nil else { return }
+        downloadButton?.isEnabled = false
+        downloadButton?.configuration?.title = L10n.text("正在下载…", "Downloading…")
+        downloadTask = URLSession.shared.downloadTask(with: url) { [weak self] location, response, error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.downloadTask = nil
+                self.downloadButton?.isEnabled = true
+                self.downloadButton?.configuration?.title = L10n.text("下载 IPA · 分享到 LCSign", "Download IPA · Share to LCSign")
+                do {
+                    if let error { throw error }
+                    guard let response = response as? HTTPURLResponse,
+                          (200..<300).contains(response.statusCode),
+                          let location else { throw AppUpdateChecker.UpdateCheckError.invalidResponse }
+                    let directory = FileManager.default.temporaryDirectory.appendingPathComponent("STRA-Updates", isDirectory: true)
+                    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                    let destination = directory.appendingPathComponent("STRA-Refresh-Update.ipa")
+                    try? FileManager.default.removeItem(at: destination)
+                    try FileManager.default.moveItem(at: location, to: destination)
+                    let file = try FileHandle(forReadingFrom: destination)
+                    let header = file.readData(ofLength: 4)
+                    try? file.close()
+                    guard header.starts(with: [0x50, 0x4b, 0x03, 0x04]) else {
+                        try? FileManager.default.removeItem(at: destination)
+                        throw AppUpdateChecker.UpdateCheckError.invalidResponse
+                    }
+                    let share = UIActivityViewController(activityItems: [destination], applicationActivities: nil)
+                    share.popoverPresentationController?.sourceView = self.downloadButton ?? self.view
+                    self.present(share, animated: true)
+                } catch {
+                    let alert = UIAlertController(title: L10n.text("下载失败", "Download Failed"), message: error.localizedDescription, preferredStyle: .alert)
+                    alert.addAction(UIAlertAction(title: L10n.ok, style: .default))
+                    self.present(alert, animated: true)
+                }
+            }
+        }
+        downloadTask?.resume()
     }
 
     @objc private func skipTapped() {
